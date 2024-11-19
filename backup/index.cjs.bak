@@ -118,12 +118,13 @@ var require_dist = __commonJS({
       tokens.push({ type: "END", index: i, value: "" });
       return tokens;
     }
-    function parse9(str, options) {
+    function parse8(str, options) {
       if (options === void 0) {
         options = {};
       }
       var tokens = lexer(str);
-      var _a2 = options.prefixes, prefixes = _a2 === void 0 ? "./" : _a2, _b = options.delimiter, delimiter = _b === void 0 ? "/#?" : _b;
+      var _a2 = options.prefixes, prefixes = _a2 === void 0 ? "./" : _a2;
+      var defaultPattern = "[^".concat(escapeString(options.delimiter || "/#?"), "]+?");
       var result = [];
       var key = 0;
       var i = 0;
@@ -147,24 +148,6 @@ var require_dist = __commonJS({
         }
         return result2;
       };
-      var isSafe = function(value2) {
-        for (var _i = 0, delimiter_1 = delimiter; _i < delimiter_1.length; _i++) {
-          var char2 = delimiter_1[_i];
-          if (value2.indexOf(char2) > -1)
-            return true;
-        }
-        return false;
-      };
-      var safePattern = function(prefix2) {
-        var prev2 = result[result.length - 1];
-        var prevText = prefix2 || (prev2 && typeof prev2 === "string" ? prev2 : "");
-        if (prev2 && !prevText) {
-          throw new TypeError('Must have text between two parameters, missing text after "'.concat(prev2.name, '"'));
-        }
-        if (!prevText || isSafe(prevText))
-          return "[^".concat(escapeString(delimiter), "]+?");
-        return "(?:(?!".concat(escapeString(prevText), ")[^").concat(escapeString(delimiter), "])+?");
-      };
       while (i < tokens.length) {
         var char = tryConsume("CHAR");
         var name314 = tryConsume("NAME");
@@ -183,7 +166,7 @@ var require_dist = __commonJS({
             name: name314 || key++,
             prefix,
             suffix: "",
-            pattern: pattern || safePattern(prefix),
+            pattern: pattern || defaultPattern,
             modifier: tryConsume("MODIFIER") || ""
           });
           continue;
@@ -206,7 +189,7 @@ var require_dist = __commonJS({
           mustConsume("CLOSE");
           result.push({
             name: name_1 || (pattern_1 ? key++ : ""),
-            pattern: name_1 && !pattern_1 ? safePattern(prefix) : pattern_1,
+            pattern: name_1 && !pattern_1 ? defaultPattern : pattern_1,
             prefix,
             suffix,
             modifier: tryConsume("MODIFIER") || ""
@@ -217,9 +200,9 @@ var require_dist = __commonJS({
       }
       return result;
     }
-    exports2.parse = parse9;
+    exports2.parse = parse8;
     function compile4(str, options) {
-      return tokensToFunction(parse9(str, options), options);
+      return tokensToFunction(parse8(str, options), options);
     }
     exports2.compile = compile4;
     function tokensToFunction(tokens, options) {
@@ -351,7 +334,7 @@ var require_dist = __commonJS({
       return new RegExp("(?:".concat(parts.join("|"), ")"), flags(options));
     }
     function stringToRegexp(path, keys, options) {
-      return tokensToRegexp(parse9(path, options), keys, options);
+      return tokensToRegexp(parse8(path, options), keys, options);
     }
     function tokensToRegexp(tokens, keys, options) {
       if (options === void 0) {
@@ -382,9 +365,10 @@ var require_dist = __commonJS({
               }
             } else {
               if (token.modifier === "+" || token.modifier === "*") {
-                throw new TypeError('Can not repeat "'.concat(token.name, '" without a prefix and suffix'));
+                route2 += "((?:".concat(token.pattern, ")").concat(token.modifier, ")");
+              } else {
+                route2 += "(".concat(token.pattern, ")").concat(token.modifier);
               }
-              route2 += "(".concat(token.pattern, ")").concat(token.modifier);
             }
           } else {
             route2 += "(?:".concat(prefix).concat(suffix, ")").concat(token.modifier);
@@ -1638,13 +1622,1016 @@ var require_typed_function = __commonJS({
   }
 });
 
+// node_modules/complex.js/complex.js
+var require_complex = __commonJS({
+  "node_modules/complex.js/complex.js"(exports2, module2) {
+    (function(root3) {
+      "use strict";
+      var cosh3 = Math.cosh || function(x) {
+        return Math.abs(x) < 1e-9 ? 1 - x : (Math.exp(x) + Math.exp(-x)) * 0.5;
+      };
+      var sinh3 = Math.sinh || function(x) {
+        return Math.abs(x) < 1e-9 ? x : (Math.exp(x) - Math.exp(-x)) * 0.5;
+      };
+      var cosm1 = function(x) {
+        var b = Math.PI / 4;
+        if (-b > x || x > b) {
+          return Math.cos(x) - 1;
+        }
+        var xx = x * x;
+        return xx * (xx * (xx * (xx * (xx * (xx * (xx * (xx / 20922789888e3 - 1 / 87178291200) + 1 / 479001600) - 1 / 3628800) + 1 / 40320) - 1 / 720) + 1 / 24) - 1 / 2);
+      };
+      var hypot2 = function(x, y) {
+        var a = Math.abs(x);
+        var b = Math.abs(y);
+        if (a < 3e3 && b < 3e3) {
+          return Math.sqrt(a * a + b * b);
+        }
+        if (a < b) {
+          a = b;
+          b = x / y;
+        } else {
+          b = y / x;
+        }
+        return a * Math.sqrt(1 + b * b);
+      };
+      var parser_exit = function() {
+        throw SyntaxError("Invalid Param");
+      };
+      function logHypot(a, b) {
+        var _a2 = Math.abs(a);
+        var _b = Math.abs(b);
+        if (a === 0) {
+          return Math.log(_b);
+        }
+        if (b === 0) {
+          return Math.log(_a2);
+        }
+        if (_a2 < 3e3 && _b < 3e3) {
+          return Math.log(a * a + b * b) * 0.5;
+        }
+        a = a / 2;
+        b = b / 2;
+        return 0.5 * Math.log(a * a + b * b) + Math.LN2;
+      }
+      var parse8 = function(a, b) {
+        var z = { "re": 0, "im": 0 };
+        if (a === void 0 || a === null) {
+          z["re"] = z["im"] = 0;
+        } else if (b !== void 0) {
+          z["re"] = a;
+          z["im"] = b;
+        } else
+          switch (typeof a) {
+            case "object":
+              if ("im" in a && "re" in a) {
+                z["re"] = a["re"];
+                z["im"] = a["im"];
+              } else if ("abs" in a && "arg" in a) {
+                if (!Number.isFinite(a["abs"]) && Number.isFinite(a["arg"])) {
+                  return Complex3["INFINITY"];
+                }
+                z["re"] = a["abs"] * Math.cos(a["arg"]);
+                z["im"] = a["abs"] * Math.sin(a["arg"]);
+              } else if ("r" in a && "phi" in a) {
+                if (!Number.isFinite(a["r"]) && Number.isFinite(a["phi"])) {
+                  return Complex3["INFINITY"];
+                }
+                z["re"] = a["r"] * Math.cos(a["phi"]);
+                z["im"] = a["r"] * Math.sin(a["phi"]);
+              } else if (a.length === 2) {
+                z["re"] = a[0];
+                z["im"] = a[1];
+              } else {
+                parser_exit();
+              }
+              break;
+            case "string":
+              z["im"] = /* void */
+              z["re"] = 0;
+              var tokens = a.match(/\d+\.?\d*e[+-]?\d+|\d+\.?\d*|\.\d+|./g);
+              var plus = 1;
+              var minus = 0;
+              if (tokens === null) {
+                parser_exit();
+              }
+              for (var i = 0; i < tokens.length; i++) {
+                var c = tokens[i];
+                if (c === " " || c === "	" || c === "\n") {
+                } else if (c === "+") {
+                  plus++;
+                } else if (c === "-") {
+                  minus++;
+                } else if (c === "i" || c === "I") {
+                  if (plus + minus === 0) {
+                    parser_exit();
+                  }
+                  if (tokens[i + 1] !== " " && !isNaN(tokens[i + 1])) {
+                    z["im"] += parseFloat((minus % 2 ? "-" : "") + tokens[i + 1]);
+                    i++;
+                  } else {
+                    z["im"] += parseFloat((minus % 2 ? "-" : "") + "1");
+                  }
+                  plus = minus = 0;
+                } else {
+                  if (plus + minus === 0 || isNaN(c)) {
+                    parser_exit();
+                  }
+                  if (tokens[i + 1] === "i" || tokens[i + 1] === "I") {
+                    z["im"] += parseFloat((minus % 2 ? "-" : "") + c);
+                    i++;
+                  } else {
+                    z["re"] += parseFloat((minus % 2 ? "-" : "") + c);
+                  }
+                  plus = minus = 0;
+                }
+              }
+              if (plus + minus > 0) {
+                parser_exit();
+              }
+              break;
+            case "number":
+              z["im"] = 0;
+              z["re"] = a;
+              break;
+            default:
+              parser_exit();
+          }
+        if (isNaN(z["re"]) || isNaN(z["im"])) {
+        }
+        return z;
+      };
+      function Complex3(a, b) {
+        if (!(this instanceof Complex3)) {
+          return new Complex3(a, b);
+        }
+        var z = parse8(a, b);
+        this["re"] = z["re"];
+        this["im"] = z["im"];
+      }
+      Complex3.prototype = {
+        "re": 0,
+        "im": 0,
+        /**
+         * Calculates the sign of a complex number, which is a normalized complex
+         *
+         * @returns {Complex}
+         */
+        "sign": function() {
+          var abs3 = this["abs"]();
+          return new Complex3(
+            this["re"] / abs3,
+            this["im"] / abs3
+          );
+        },
+        /**
+         * Adds two complex numbers
+         *
+         * @returns {Complex}
+         */
+        "add": function(a, b) {
+          var z = new Complex3(a, b);
+          if (this["isInfinite"]() && z["isInfinite"]()) {
+            return Complex3["NAN"];
+          }
+          if (this["isInfinite"]() || z["isInfinite"]()) {
+            return Complex3["INFINITY"];
+          }
+          return new Complex3(
+            this["re"] + z["re"],
+            this["im"] + z["im"]
+          );
+        },
+        /**
+         * Subtracts two complex numbers
+         *
+         * @returns {Complex}
+         */
+        "sub": function(a, b) {
+          var z = new Complex3(a, b);
+          if (this["isInfinite"]() && z["isInfinite"]()) {
+            return Complex3["NAN"];
+          }
+          if (this["isInfinite"]() || z["isInfinite"]()) {
+            return Complex3["INFINITY"];
+          }
+          return new Complex3(
+            this["re"] - z["re"],
+            this["im"] - z["im"]
+          );
+        },
+        /**
+         * Multiplies two complex numbers
+         *
+         * @returns {Complex}
+         */
+        "mul": function(a, b) {
+          var z = new Complex3(a, b);
+          if (this["isInfinite"]() && z["isZero"]() || this["isZero"]() && z["isInfinite"]()) {
+            return Complex3["NAN"];
+          }
+          if (this["isInfinite"]() || z["isInfinite"]()) {
+            return Complex3["INFINITY"];
+          }
+          if (z["im"] === 0 && this["im"] === 0) {
+            return new Complex3(this["re"] * z["re"], 0);
+          }
+          return new Complex3(
+            this["re"] * z["re"] - this["im"] * z["im"],
+            this["re"] * z["im"] + this["im"] * z["re"]
+          );
+        },
+        /**
+         * Divides two complex numbers
+         *
+         * @returns {Complex}
+         */
+        "div": function(a, b) {
+          var z = new Complex3(a, b);
+          if (this["isZero"]() && z["isZero"]() || this["isInfinite"]() && z["isInfinite"]()) {
+            return Complex3["NAN"];
+          }
+          if (this["isInfinite"]() || z["isZero"]()) {
+            return Complex3["INFINITY"];
+          }
+          if (this["isZero"]() || z["isInfinite"]()) {
+            return Complex3["ZERO"];
+          }
+          a = this["re"];
+          b = this["im"];
+          var c = z["re"];
+          var d = z["im"];
+          var t, x;
+          if (0 === d) {
+            return new Complex3(a / c, b / c);
+          }
+          if (Math.abs(c) < Math.abs(d)) {
+            x = c / d;
+            t = c * x + d;
+            return new Complex3(
+              (a * x + b) / t,
+              (b * x - a) / t
+            );
+          } else {
+            x = d / c;
+            t = d * x + c;
+            return new Complex3(
+              (a + b * x) / t,
+              (b - a * x) / t
+            );
+          }
+        },
+        /**
+         * Calculate the power of two complex numbers
+         *
+         * @returns {Complex}
+         */
+        "pow": function(a, b) {
+          var z = new Complex3(a, b);
+          a = this["re"];
+          b = this["im"];
+          if (z["isZero"]()) {
+            return Complex3["ONE"];
+          }
+          if (z["im"] === 0) {
+            if (b === 0 && a > 0) {
+              return new Complex3(Math.pow(a, z["re"]), 0);
+            } else if (a === 0) {
+              switch ((z["re"] % 4 + 4) % 4) {
+                case 0:
+                  return new Complex3(Math.pow(b, z["re"]), 0);
+                case 1:
+                  return new Complex3(0, Math.pow(b, z["re"]));
+                case 2:
+                  return new Complex3(-Math.pow(b, z["re"]), 0);
+                case 3:
+                  return new Complex3(0, -Math.pow(b, z["re"]));
+              }
+            }
+          }
+          if (a === 0 && b === 0 && z["re"] > 0 && z["im"] >= 0) {
+            return Complex3["ZERO"];
+          }
+          var arg = Math.atan2(b, a);
+          var loh = logHypot(a, b);
+          a = Math.exp(z["re"] * loh - z["im"] * arg);
+          b = z["im"] * loh + z["re"] * arg;
+          return new Complex3(
+            a * Math.cos(b),
+            a * Math.sin(b)
+          );
+        },
+        /**
+         * Calculate the complex square root
+         *
+         * @returns {Complex}
+         */
+        "sqrt": function() {
+          var a = this["re"];
+          var b = this["im"];
+          var r = this["abs"]();
+          var re, im;
+          if (a >= 0) {
+            if (b === 0) {
+              return new Complex3(Math.sqrt(a), 0);
+            }
+            re = 0.5 * Math.sqrt(2 * (r + a));
+          } else {
+            re = Math.abs(b) / Math.sqrt(2 * (r - a));
+          }
+          if (a <= 0) {
+            im = 0.5 * Math.sqrt(2 * (r - a));
+          } else {
+            im = Math.abs(b) / Math.sqrt(2 * (r + a));
+          }
+          return new Complex3(re, b < 0 ? -im : im);
+        },
+        /**
+         * Calculate the complex exponent
+         *
+         * @returns {Complex}
+         */
+        "exp": function() {
+          var tmp = Math.exp(this["re"]);
+          if (this["im"] === 0) {
+          }
+          return new Complex3(
+            tmp * Math.cos(this["im"]),
+            tmp * Math.sin(this["im"])
+          );
+        },
+        /**
+         * Calculate the complex exponent and subtracts one.
+         *
+         * This may be more accurate than `Complex(x).exp().sub(1)` if
+         * `x` is small.
+         *
+         * @returns {Complex}
+         */
+        "expm1": function() {
+          var a = this["re"];
+          var b = this["im"];
+          return new Complex3(
+            Math.expm1(a) * Math.cos(b) + cosm1(b),
+            Math.exp(a) * Math.sin(b)
+          );
+        },
+        /**
+         * Calculate the natural log
+         *
+         * @returns {Complex}
+         */
+        "log": function() {
+          var a = this["re"];
+          var b = this["im"];
+          if (b === 0 && a > 0) {
+          }
+          return new Complex3(
+            logHypot(a, b),
+            Math.atan2(b, a)
+          );
+        },
+        /**
+         * Calculate the magnitude of the complex number
+         *
+         * @returns {number}
+         */
+        "abs": function() {
+          return hypot2(this["re"], this["im"]);
+        },
+        /**
+         * Calculate the angle of the complex number
+         *
+         * @returns {number}
+         */
+        "arg": function() {
+          return Math.atan2(this["im"], this["re"]);
+        },
+        /**
+         * Calculate the sine of the complex number
+         *
+         * @returns {Complex}
+         */
+        "sin": function() {
+          var a = this["re"];
+          var b = this["im"];
+          return new Complex3(
+            Math.sin(a) * cosh3(b),
+            Math.cos(a) * sinh3(b)
+          );
+        },
+        /**
+         * Calculate the cosine
+         *
+         * @returns {Complex}
+         */
+        "cos": function() {
+          var a = this["re"];
+          var b = this["im"];
+          return new Complex3(
+            Math.cos(a) * cosh3(b),
+            -Math.sin(a) * sinh3(b)
+          );
+        },
+        /**
+         * Calculate the tangent
+         *
+         * @returns {Complex}
+         */
+        "tan": function() {
+          var a = 2 * this["re"];
+          var b = 2 * this["im"];
+          var d = Math.cos(a) + cosh3(b);
+          return new Complex3(
+            Math.sin(a) / d,
+            sinh3(b) / d
+          );
+        },
+        /**
+         * Calculate the cotangent
+         *
+         * @returns {Complex}
+         */
+        "cot": function() {
+          var a = 2 * this["re"];
+          var b = 2 * this["im"];
+          var d = Math.cos(a) - cosh3(b);
+          return new Complex3(
+            -Math.sin(a) / d,
+            sinh3(b) / d
+          );
+        },
+        /**
+         * Calculate the secant
+         *
+         * @returns {Complex}
+         */
+        "sec": function() {
+          var a = this["re"];
+          var b = this["im"];
+          var d = 0.5 * cosh3(2 * b) + 0.5 * Math.cos(2 * a);
+          return new Complex3(
+            Math.cos(a) * cosh3(b) / d,
+            Math.sin(a) * sinh3(b) / d
+          );
+        },
+        /**
+         * Calculate the cosecans
+         *
+         * @returns {Complex}
+         */
+        "csc": function() {
+          var a = this["re"];
+          var b = this["im"];
+          var d = 0.5 * cosh3(2 * b) - 0.5 * Math.cos(2 * a);
+          return new Complex3(
+            Math.sin(a) * cosh3(b) / d,
+            -Math.cos(a) * sinh3(b) / d
+          );
+        },
+        /**
+         * Calculate the complex arcus sinus
+         *
+         * @returns {Complex}
+         */
+        "asin": function() {
+          var a = this["re"];
+          var b = this["im"];
+          var t1 = new Complex3(
+            b * b - a * a + 1,
+            -2 * a * b
+          )["sqrt"]();
+          var t2 = new Complex3(
+            t1["re"] - b,
+            t1["im"] + a
+          )["log"]();
+          return new Complex3(t2["im"], -t2["re"]);
+        },
+        /**
+         * Calculate the complex arcus cosinus
+         *
+         * @returns {Complex}
+         */
+        "acos": function() {
+          var a = this["re"];
+          var b = this["im"];
+          var t1 = new Complex3(
+            b * b - a * a + 1,
+            -2 * a * b
+          )["sqrt"]();
+          var t2 = new Complex3(
+            t1["re"] - b,
+            t1["im"] + a
+          )["log"]();
+          return new Complex3(Math.PI / 2 - t2["im"], t2["re"]);
+        },
+        /**
+         * Calculate the complex arcus tangent
+         *
+         * @returns {Complex}
+         */
+        "atan": function() {
+          var a = this["re"];
+          var b = this["im"];
+          if (a === 0) {
+            if (b === 1) {
+              return new Complex3(0, Infinity);
+            }
+            if (b === -1) {
+              return new Complex3(0, -Infinity);
+            }
+          }
+          var d = a * a + (1 - b) * (1 - b);
+          var t1 = new Complex3(
+            (1 - b * b - a * a) / d,
+            -2 * a / d
+          ).log();
+          return new Complex3(-0.5 * t1["im"], 0.5 * t1["re"]);
+        },
+        /**
+         * Calculate the complex arcus cotangent
+         *
+         * @returns {Complex}
+         */
+        "acot": function() {
+          var a = this["re"];
+          var b = this["im"];
+          if (b === 0) {
+            return new Complex3(Math.atan2(1, a), 0);
+          }
+          var d = a * a + b * b;
+          return d !== 0 ? new Complex3(
+            a / d,
+            -b / d
+          ).atan() : new Complex3(
+            a !== 0 ? a / 0 : 0,
+            b !== 0 ? -b / 0 : 0
+          ).atan();
+        },
+        /**
+         * Calculate the complex arcus secant
+         *
+         * @returns {Complex}
+         */
+        "asec": function() {
+          var a = this["re"];
+          var b = this["im"];
+          if (a === 0 && b === 0) {
+            return new Complex3(0, Infinity);
+          }
+          var d = a * a + b * b;
+          return d !== 0 ? new Complex3(
+            a / d,
+            -b / d
+          ).acos() : new Complex3(
+            a !== 0 ? a / 0 : 0,
+            b !== 0 ? -b / 0 : 0
+          ).acos();
+        },
+        /**
+         * Calculate the complex arcus cosecans
+         *
+         * @returns {Complex}
+         */
+        "acsc": function() {
+          var a = this["re"];
+          var b = this["im"];
+          if (a === 0 && b === 0) {
+            return new Complex3(Math.PI / 2, Infinity);
+          }
+          var d = a * a + b * b;
+          return d !== 0 ? new Complex3(
+            a / d,
+            -b / d
+          ).asin() : new Complex3(
+            a !== 0 ? a / 0 : 0,
+            b !== 0 ? -b / 0 : 0
+          ).asin();
+        },
+        /**
+         * Calculate the complex sinh
+         *
+         * @returns {Complex}
+         */
+        "sinh": function() {
+          var a = this["re"];
+          var b = this["im"];
+          return new Complex3(
+            sinh3(a) * Math.cos(b),
+            cosh3(a) * Math.sin(b)
+          );
+        },
+        /**
+         * Calculate the complex cosh
+         *
+         * @returns {Complex}
+         */
+        "cosh": function() {
+          var a = this["re"];
+          var b = this["im"];
+          return new Complex3(
+            cosh3(a) * Math.cos(b),
+            sinh3(a) * Math.sin(b)
+          );
+        },
+        /**
+         * Calculate the complex tanh
+         *
+         * @returns {Complex}
+         */
+        "tanh": function() {
+          var a = 2 * this["re"];
+          var b = 2 * this["im"];
+          var d = cosh3(a) + Math.cos(b);
+          return new Complex3(
+            sinh3(a) / d,
+            Math.sin(b) / d
+          );
+        },
+        /**
+         * Calculate the complex coth
+         *
+         * @returns {Complex}
+         */
+        "coth": function() {
+          var a = 2 * this["re"];
+          var b = 2 * this["im"];
+          var d = cosh3(a) - Math.cos(b);
+          return new Complex3(
+            sinh3(a) / d,
+            -Math.sin(b) / d
+          );
+        },
+        /**
+         * Calculate the complex coth
+         *
+         * @returns {Complex}
+         */
+        "csch": function() {
+          var a = this["re"];
+          var b = this["im"];
+          var d = Math.cos(2 * b) - cosh3(2 * a);
+          return new Complex3(
+            -2 * sinh3(a) * Math.cos(b) / d,
+            2 * cosh3(a) * Math.sin(b) / d
+          );
+        },
+        /**
+         * Calculate the complex sech
+         *
+         * @returns {Complex}
+         */
+        "sech": function() {
+          var a = this["re"];
+          var b = this["im"];
+          var d = Math.cos(2 * b) + cosh3(2 * a);
+          return new Complex3(
+            2 * cosh3(a) * Math.cos(b) / d,
+            -2 * sinh3(a) * Math.sin(b) / d
+          );
+        },
+        /**
+         * Calculate the complex asinh
+         *
+         * @returns {Complex}
+         */
+        "asinh": function() {
+          var tmp = this["im"];
+          this["im"] = -this["re"];
+          this["re"] = tmp;
+          var res = this["asin"]();
+          this["re"] = -this["im"];
+          this["im"] = tmp;
+          tmp = res["re"];
+          res["re"] = -res["im"];
+          res["im"] = tmp;
+          return res;
+        },
+        /**
+         * Calculate the complex acosh
+         *
+         * @returns {Complex}
+         */
+        "acosh": function() {
+          var res = this["acos"]();
+          if (res["im"] <= 0) {
+            var tmp = res["re"];
+            res["re"] = -res["im"];
+            res["im"] = tmp;
+          } else {
+            var tmp = res["im"];
+            res["im"] = -res["re"];
+            res["re"] = tmp;
+          }
+          return res;
+        },
+        /**
+         * Calculate the complex atanh
+         *
+         * @returns {Complex}
+         */
+        "atanh": function() {
+          var a = this["re"];
+          var b = this["im"];
+          var noIM = a > 1 && b === 0;
+          var oneMinus = 1 - a;
+          var onePlus = 1 + a;
+          var d = oneMinus * oneMinus + b * b;
+          var x = d !== 0 ? new Complex3(
+            (onePlus * oneMinus - b * b) / d,
+            (b * oneMinus + onePlus * b) / d
+          ) : new Complex3(
+            a !== -1 ? a / 0 : 0,
+            b !== 0 ? b / 0 : 0
+          );
+          var temp = x["re"];
+          x["re"] = logHypot(x["re"], x["im"]) / 2;
+          x["im"] = Math.atan2(x["im"], temp) / 2;
+          if (noIM) {
+            x["im"] = -x["im"];
+          }
+          return x;
+        },
+        /**
+         * Calculate the complex acoth
+         *
+         * @returns {Complex}
+         */
+        "acoth": function() {
+          var a = this["re"];
+          var b = this["im"];
+          if (a === 0 && b === 0) {
+            return new Complex3(0, Math.PI / 2);
+          }
+          var d = a * a + b * b;
+          return d !== 0 ? new Complex3(
+            a / d,
+            -b / d
+          ).atanh() : new Complex3(
+            a !== 0 ? a / 0 : 0,
+            b !== 0 ? -b / 0 : 0
+          ).atanh();
+        },
+        /**
+         * Calculate the complex acsch
+         *
+         * @returns {Complex}
+         */
+        "acsch": function() {
+          var a = this["re"];
+          var b = this["im"];
+          if (b === 0) {
+            return new Complex3(
+              a !== 0 ? Math.log(a + Math.sqrt(a * a + 1)) : Infinity,
+              0
+            );
+          }
+          var d = a * a + b * b;
+          return d !== 0 ? new Complex3(
+            a / d,
+            -b / d
+          ).asinh() : new Complex3(
+            a !== 0 ? a / 0 : 0,
+            b !== 0 ? -b / 0 : 0
+          ).asinh();
+        },
+        /**
+         * Calculate the complex asech
+         *
+         * @returns {Complex}
+         */
+        "asech": function() {
+          var a = this["re"];
+          var b = this["im"];
+          if (this["isZero"]()) {
+            return Complex3["INFINITY"];
+          }
+          var d = a * a + b * b;
+          return d !== 0 ? new Complex3(
+            a / d,
+            -b / d
+          ).acosh() : new Complex3(
+            a !== 0 ? a / 0 : 0,
+            b !== 0 ? -b / 0 : 0
+          ).acosh();
+        },
+        /**
+         * Calculate the complex inverse 1/z
+         *
+         * @returns {Complex}
+         */
+        "inverse": function() {
+          if (this["isZero"]()) {
+            return Complex3["INFINITY"];
+          }
+          if (this["isInfinite"]()) {
+            return Complex3["ZERO"];
+          }
+          var a = this["re"];
+          var b = this["im"];
+          var d = a * a + b * b;
+          return new Complex3(a / d, -b / d);
+        },
+        /**
+         * Returns the complex conjugate
+         *
+         * @returns {Complex}
+         */
+        "conjugate": function() {
+          return new Complex3(this["re"], -this["im"]);
+        },
+        /**
+         * Gets the negated complex number
+         *
+         * @returns {Complex}
+         */
+        "neg": function() {
+          return new Complex3(-this["re"], -this["im"]);
+        },
+        /**
+         * Ceils the actual complex number
+         *
+         * @returns {Complex}
+         */
+        "ceil": function(places) {
+          places = Math.pow(10, places || 0);
+          return new Complex3(
+            Math.ceil(this["re"] * places) / places,
+            Math.ceil(this["im"] * places) / places
+          );
+        },
+        /**
+         * Floors the actual complex number
+         *
+         * @returns {Complex}
+         */
+        "floor": function(places) {
+          places = Math.pow(10, places || 0);
+          return new Complex3(
+            Math.floor(this["re"] * places) / places,
+            Math.floor(this["im"] * places) / places
+          );
+        },
+        /**
+         * Ceils the actual complex number
+         *
+         * @returns {Complex}
+         */
+        "round": function(places) {
+          places = Math.pow(10, places || 0);
+          return new Complex3(
+            Math.round(this["re"] * places) / places,
+            Math.round(this["im"] * places) / places
+          );
+        },
+        /**
+         * Compares two complex numbers
+         *
+         * **Note:** new Complex(Infinity).equals(Infinity) === false
+         *
+         * @returns {boolean}
+         */
+        "equals": function(a, b) {
+          var z = new Complex3(a, b);
+          return Math.abs(z["re"] - this["re"]) <= Complex3["EPSILON"] && Math.abs(z["im"] - this["im"]) <= Complex3["EPSILON"];
+        },
+        /**
+         * Clones the actual object
+         *
+         * @returns {Complex}
+         */
+        "clone": function() {
+          return new Complex3(this["re"], this["im"]);
+        },
+        /**
+         * Gets a string of the actual complex number
+         *
+         * @returns {string}
+         */
+        "toString": function() {
+          var a = this["re"];
+          var b = this["im"];
+          var ret = "";
+          if (this["isNaN"]()) {
+            return "NaN";
+          }
+          if (this["isInfinite"]()) {
+            return "Infinity";
+          }
+          if (Math.abs(a) < Complex3["EPSILON"]) {
+            a = 0;
+          }
+          if (Math.abs(b) < Complex3["EPSILON"]) {
+            b = 0;
+          }
+          if (b === 0) {
+            return ret + a;
+          }
+          if (a !== 0) {
+            ret += a;
+            ret += " ";
+            if (b < 0) {
+              b = -b;
+              ret += "-";
+            } else {
+              ret += "+";
+            }
+            ret += " ";
+          } else if (b < 0) {
+            b = -b;
+            ret += "-";
+          }
+          if (1 !== b) {
+            ret += b;
+          }
+          return ret + "i";
+        },
+        /**
+         * Returns the actual number as a vector
+         *
+         * @returns {Array}
+         */
+        "toVector": function() {
+          return [this["re"], this["im"]];
+        },
+        /**
+         * Returns the actual real value of the current object
+         *
+         * @returns {number|null}
+         */
+        "valueOf": function() {
+          if (this["im"] === 0) {
+            return this["re"];
+          }
+          return null;
+        },
+        /**
+         * Determines whether a complex number is not on the Riemann sphere.
+         *
+         * @returns {boolean}
+         */
+        "isNaN": function() {
+          return isNaN(this["re"]) || isNaN(this["im"]);
+        },
+        /**
+         * Determines whether or not a complex number is at the zero pole of the
+         * Riemann sphere.
+         *
+         * @returns {boolean}
+         */
+        "isZero": function() {
+          return this["im"] === 0 && this["re"] === 0;
+        },
+        /**
+         * Determines whether a complex number is not at the infinity pole of the
+         * Riemann sphere.
+         *
+         * @returns {boolean}
+         */
+        "isFinite": function() {
+          return isFinite(this["re"]) && isFinite(this["im"]);
+        },
+        /**
+         * Determines whether or not a complex number is at the infinity pole of the
+         * Riemann sphere.
+         *
+         * @returns {boolean}
+         */
+        "isInfinite": function() {
+          return !(this["isNaN"]() || this["isFinite"]());
+        }
+      };
+      Complex3["ZERO"] = new Complex3(0, 0);
+      Complex3["ONE"] = new Complex3(1, 0);
+      Complex3["I"] = new Complex3(0, 1);
+      Complex3["PI"] = new Complex3(Math.PI, 0);
+      Complex3["E"] = new Complex3(Math.E, 0);
+      Complex3["INFINITY"] = new Complex3(Infinity, Infinity);
+      Complex3["NAN"] = new Complex3(NaN, NaN);
+      Complex3["EPSILON"] = 1e-15;
+      if (typeof define === "function" && define["amd"]) {
+        define([], function() {
+          return Complex3;
+        });
+      } else if (typeof exports2 === "object") {
+        Object.defineProperty(Complex3, "__esModule", { "value": true });
+        Complex3["default"] = Complex3;
+        Complex3["Complex"] = Complex3;
+        module2["exports"] = Complex3;
+      } else {
+        root3["Complex"] = Complex3;
+      }
+    })(exports2);
+  }
+});
+
 // node_modules/fraction.js/fraction.js
 var require_fraction = __commonJS({
   "node_modules/fraction.js/fraction.js"(exports2, module2) {
     (function(root3) {
       "use strict";
       var MAX_CYCLE_LEN = 2e3;
-      var P4 = {
+      var P3 = {
         "s": 1,
         "n": 0,
         "d": 1
@@ -1687,7 +2674,7 @@ var require_fraction = __commonJS({
         }
         return factors;
       }
-      var parse9 = function(p1, p2) {
+      var parse8 = function(p1, p2) {
         var n = 0, d = 1, s = 1;
         var v = 0, w = 0, x = 0, y = 1, z = 1;
         var A = 0, B = 1;
@@ -1819,9 +2806,9 @@ var require_fraction = __commonJS({
         if (d === 0) {
           throw DivisionByZero();
         }
-        P4["s"] = s < 0 ? -1 : 1;
-        P4["n"] = Math.abs(n);
-        P4["d"] = Math.abs(d);
+        P3["s"] = s < 0 ? -1 : 1;
+        P3["n"] = Math.abs(n);
+        P3["d"] = Math.abs(d);
       };
       function modpow(b, e2, m) {
         var r = 1;
@@ -1875,14 +2862,14 @@ var require_fraction = __commonJS({
       }
       ;
       function Fraction6(a, b) {
-        parse9(a, b);
+        parse8(a, b);
         if (this instanceof Fraction6) {
-          a = gcd(P4["d"], P4["n"]);
-          this["s"] = P4["s"];
-          this["n"] = P4["n"] / a;
-          this["d"] = P4["d"] / a;
+          a = gcd(P3["d"], P3["n"]);
+          this["s"] = P3["s"];
+          this["n"] = P3["n"] / a;
+          this["d"] = P3["d"] / a;
         } else {
-          return newFraction(P4["s"] * P4["n"], P4["d"]);
+          return newFraction(P3["s"] * P3["n"], P3["d"]);
         }
       }
       var DivisionByZero = function() {
@@ -1920,10 +2907,10 @@ var require_fraction = __commonJS({
          * Ex: new Fraction({n: 2, d: 3}).add("14.9") => 467 / 30
          **/
         "add": function(a, b) {
-          parse9(a, b);
+          parse8(a, b);
           return newFraction(
-            this["s"] * this["n"] * P4["d"] + P4["s"] * this["d"] * P4["n"],
-            this["d"] * P4["d"]
+            this["s"] * this["n"] * P3["d"] + P3["s"] * this["d"] * P3["n"],
+            this["d"] * P3["d"]
           );
         },
         /**
@@ -1932,10 +2919,10 @@ var require_fraction = __commonJS({
          * Ex: new Fraction({n: 2, d: 3}).add("14.9") => -427 / 30
          **/
         "sub": function(a, b) {
-          parse9(a, b);
+          parse8(a, b);
           return newFraction(
-            this["s"] * this["n"] * P4["d"] - P4["s"] * this["d"] * P4["n"],
-            this["d"] * P4["d"]
+            this["s"] * this["n"] * P3["d"] - P3["s"] * this["d"] * P3["n"],
+            this["d"] * P3["d"]
           );
         },
         /**
@@ -1944,10 +2931,10 @@ var require_fraction = __commonJS({
          * Ex: new Fraction("-17.(345)").mul(3) => 5776 / 111
          **/
         "mul": function(a, b) {
-          parse9(a, b);
+          parse8(a, b);
           return newFraction(
-            this["s"] * P4["s"] * this["n"] * P4["n"],
-            this["d"] * P4["d"]
+            this["s"] * P3["s"] * this["n"] * P3["n"],
+            this["d"] * P3["d"]
           );
         },
         /**
@@ -1956,10 +2943,10 @@ var require_fraction = __commonJS({
          * Ex: new Fraction("-17.(345)").inverse().div(3)
          **/
         "div": function(a, b) {
-          parse9(a, b);
+          parse8(a, b);
           return newFraction(
-            this["s"] * P4["s"] * this["n"] * P4["d"],
-            this["d"] * P4["n"]
+            this["s"] * P3["s"] * this["n"] * P3["d"],
+            this["d"] * P3["n"]
           );
         },
         /**
@@ -1982,13 +2969,13 @@ var require_fraction = __commonJS({
           if (a === void 0) {
             return newFraction(this["s"] * this["n"] % this["d"], 1);
           }
-          parse9(a, b);
-          if (0 === P4["n"] && 0 === this["d"]) {
+          parse8(a, b);
+          if (0 === P3["n"] && 0 === this["d"]) {
             throw DivisionByZero();
           }
           return newFraction(
-            this["s"] * (P4["d"] * this["n"]) % (P4["n"] * this["d"]),
-            P4["d"] * this["d"]
+            this["s"] * (P3["d"] * this["n"]) % (P3["n"] * this["d"]),
+            P3["d"] * this["d"]
           );
         },
         /**
@@ -1997,8 +2984,8 @@ var require_fraction = __commonJS({
          * Ex: new Fraction(5,8).gcd(3,7) => 1/56
          */
         "gcd": function(a, b) {
-          parse9(a, b);
-          return newFraction(gcd(P4["n"], this["n"]) * gcd(P4["d"], this["d"]), P4["d"] * this["d"]);
+          parse8(a, b);
+          return newFraction(gcd(P3["n"], this["n"]) * gcd(P3["d"], this["d"]), P3["d"] * this["d"]);
         },
         /**
          * Calculates the fractional lcm of two rational numbers
@@ -2006,11 +2993,11 @@ var require_fraction = __commonJS({
          * Ex: new Fraction(5,8).lcm(3,7) => 15
          */
         "lcm": function(a, b) {
-          parse9(a, b);
-          if (P4["n"] === 0 && this["n"] === 0) {
+          parse8(a, b);
+          if (P3["n"] === 0 && this["n"] === 0) {
             return newFraction(0, 1);
           }
-          return newFraction(P4["n"] * this["n"], gcd(P4["n"], this["n"]) * gcd(P4["d"], this["d"]));
+          return newFraction(P3["n"] * this["n"], gcd(P3["n"], this["n"]) * gcd(P3["d"], this["d"]));
         },
         /**
          * Calculates the ceil of a rational number
@@ -2062,12 +3049,12 @@ var require_fraction = __commonJS({
          * Ex: new Fraction(-1,2).pow(-3) => -8
          */
         "pow": function(a, b) {
-          parse9(a, b);
-          if (P4["d"] === 1) {
-            if (P4["s"] < 0) {
-              return newFraction(Math.pow(this["s"] * this["d"], P4["n"]), Math.pow(this["n"], P4["n"]));
+          parse8(a, b);
+          if (P3["d"] === 1) {
+            if (P3["s"] < 0) {
+              return newFraction(Math.pow(this["s"] * this["d"], P3["n"]), Math.pow(this["n"], P3["n"]));
             } else {
-              return newFraction(Math.pow(this["s"] * this["n"], P4["n"]), Math.pow(this["d"], P4["n"]));
+              return newFraction(Math.pow(this["s"] * this["n"], P3["n"]), Math.pow(this["d"], P3["n"]));
             }
           }
           if (this["s"] < 0) return null;
@@ -2081,21 +3068,21 @@ var require_fraction = __commonJS({
               n = 0;
               break;
             }
-            N[k] *= P4["n"];
-            if (N[k] % P4["d"] === 0) {
-              N[k] /= P4["d"];
+            N[k] *= P3["n"];
+            if (N[k] % P3["d"] === 0) {
+              N[k] /= P3["d"];
             } else return null;
             n *= Math.pow(k, N[k]);
           }
           for (var k in D) {
             if (k === "1") continue;
-            D[k] *= P4["n"];
-            if (D[k] % P4["d"] === 0) {
-              D[k] /= P4["d"];
+            D[k] *= P3["n"];
+            if (D[k] % P3["d"] === 0) {
+              D[k] /= P3["d"];
             } else return null;
             d *= Math.pow(k, D[k]);
           }
-          if (P4["s"] < 0) {
+          if (P3["s"] < 0) {
             return newFraction(d, n);
           }
           return newFraction(n, d);
@@ -2106,8 +3093,8 @@ var require_fraction = __commonJS({
          * Ex: new Fraction(19.6).equals([98, 5]);
          **/
         "equals": function(a, b) {
-          parse9(a, b);
-          return this["s"] * this["n"] * P4["d"] === P4["s"] * P4["n"] * this["d"];
+          parse8(a, b);
+          return this["s"] * this["n"] * P3["d"] === P3["s"] * P3["n"] * this["d"];
         },
         /**
          * Check if two rational numbers are the same
@@ -2115,8 +3102,8 @@ var require_fraction = __commonJS({
          * Ex: new Fraction(19.6).equals([98, 5]);
          **/
         "compare": function(a, b) {
-          parse9(a, b);
-          var t = this["s"] * this["n"] * P4["d"] - P4["s"] * P4["n"] * this["d"];
+          parse8(a, b);
+          var t = this["s"] * this["n"] * P3["d"] - P3["s"] * P3["n"] * this["d"];
           return (0 < t) - (t < 0);
         },
         "simplify": function(eps) {
@@ -2143,8 +3130,8 @@ var require_fraction = __commonJS({
          * Ex: new Fraction(19.6).divisible(1.5);
          */
         "divisible": function(a, b) {
-          parse9(a, b);
-          return !(!(P4["n"] * this["d"]) || this["n"] * P4["d"] % (P4["n"] * this["d"]));
+          parse8(a, b);
+          return !(!(P3["n"] * this["d"]) || this["n"] * P3["d"] % (P3["n"] * this["d"]));
         },
         /**
          * Returns a decimal representation of the fraction
@@ -12337,7 +13324,7 @@ var require_form_data = __commonJS({
       if (typeof value == "number") {
         value = "" + value;
       }
-      if (Array.isArray(value)) {
+      if (util2.isArray(value)) {
         this._error(new Error("Arrays are not supported."));
         return;
       }
@@ -12694,7 +13681,7 @@ var require_ms = __commonJS({
       options = options || {};
       var type = typeof val3;
       if (type === "string" && val3.length > 0) {
-        return parse9(val3);
+        return parse8(val3);
       } else if (type === "number" && isFinite(val3)) {
         return options.long ? fmtLong(val3) : fmtShort(val3);
       }
@@ -12702,7 +13689,7 @@ var require_ms = __commonJS({
         "val is not a non-empty string or a valid number. val=" + JSON.stringify(val3)
       );
     };
-    function parse9(str) {
+    function parse8(str) {
       str = String(str);
       if (str.length > 100) {
         return;
@@ -13460,17 +14447,9 @@ var require_follow_redirects = __commonJS({
     var Writable = require("stream").Writable;
     var assert = require("assert");
     var debug = require_debug();
-    (function detectUnsupportedEnvironment() {
-      var looksLikeNode = typeof process !== "undefined";
-      var looksLikeBrowser = typeof window !== "undefined" && typeof document !== "undefined";
-      var looksLikeV8 = isFunction3(Error.captureStackTrace);
-      if (!looksLikeNode && (looksLikeBrowser || !looksLikeV8)) {
-        console.warn("The follow-redirects package should be excluded from browser builds.");
-      }
-    })();
     var useNativeURL = false;
     try {
-      assert(new URL2(""));
+      assert(new URL2());
     } catch (error2) {
       useNativeURL = error2.code === "ERR_INVALID_URL";
     }
@@ -13897,9 +14876,7 @@ var require_follow_redirects = __commonJS({
     }
     function createErrorType(code, message, baseClass) {
       function CustomError(properties2) {
-        if (isFunction3(Error.captureStackTrace)) {
-          Error.captureStackTrace(this, this.constructor);
-        }
+        Error.captureStackTrace(this, this.constructor);
         Object.assign(this, properties2 || {});
         this.code = code;
         this.message = this.cause ? message + ": " + this.cause.message : message;
@@ -14574,31 +15551,6 @@ var require_strnum = __commonJS({
   }
 });
 
-// node_modules/fast-xml-parser/src/ignoreAttributes.js
-var require_ignoreAttributes = __commonJS({
-  "node_modules/fast-xml-parser/src/ignoreAttributes.js"(exports2, module2) {
-    function getIgnoreAttributesFn(ignoreAttributes) {
-      if (typeof ignoreAttributes === "function") {
-        return ignoreAttributes;
-      }
-      if (Array.isArray(ignoreAttributes)) {
-        return (attrName) => {
-          for (const pattern of ignoreAttributes) {
-            if (typeof pattern === "string" && attrName === pattern) {
-              return true;
-            }
-            if (pattern instanceof RegExp && pattern.test(attrName)) {
-              return true;
-            }
-          }
-        };
-      }
-      return () => false;
-    }
-    module2.exports = getIgnoreAttributesFn;
-  }
-});
-
 // node_modules/fast-xml-parser/src/xmlparser/OrderedObjParser.js
 var require_OrderedObjParser = __commonJS({
   "node_modules/fast-xml-parser/src/xmlparser/OrderedObjParser.js"(exports2, module2) {
@@ -14607,7 +15559,6 @@ var require_OrderedObjParser = __commonJS({
     var xmlNode = require_xmlNode();
     var readDocType = require_DocTypeReader();
     var toNumber = require_strnum();
-    var getIgnoreAttributesFn = require_ignoreAttributes();
     var OrderedObjParser = class {
       constructor(options) {
         this.options = options;
@@ -14648,7 +15599,6 @@ var require_OrderedObjParser = __commonJS({
         this.readStopNodeData = readStopNodeData;
         this.saveTextToParentTag = saveTextToParentTag;
         this.addChild = addChild;
-        this.ignoreAttributesFn = getIgnoreAttributesFn(this.options.ignoreAttributes);
       }
     };
     function addExternalEntities(externalEntities) {
@@ -14701,15 +15651,12 @@ var require_OrderedObjParser = __commonJS({
     }
     var attrsRegx = new RegExp(`([^\\s=]+)\\s*(=\\s*(['"])([\\s\\S]*?)\\3)?`, "gm");
     function buildAttributesMap(attrStr, jPath, tagName) {
-      if (this.options.ignoreAttributes !== true && typeof attrStr === "string") {
+      if (!this.options.ignoreAttributes && typeof attrStr === "string") {
         const matches = util2.getAllMatches(attrStr, attrsRegx);
         const len = matches.length;
         const attrs = {};
         for (let i = 0; i < len; i++) {
           const attrName = this.resolveNameSpace(matches[i][1]);
-          if (this.ignoreAttributesFn(attrName, jPath)) {
-            continue;
-          }
           let oldVal = matches[i][4];
           let aName = this.options.attributeNamePrefix + attrName;
           if (attrName.length) {
@@ -15369,7 +16316,6 @@ var require_json2xml = __commonJS({
   "node_modules/fast-xml-parser/src/xmlbuilder/json2xml.js"(exports2, module2) {
     "use strict";
     var buildFromOrderedJs = require_orderedJs2Xml();
-    var getIgnoreAttributesFn = require_ignoreAttributes();
     var defaultOptions2 = {
       attributeNamePrefix: "@_",
       attributesGroupName: false,
@@ -15406,12 +16352,11 @@ var require_json2xml = __commonJS({
     };
     function Builder(options) {
       this.options = Object.assign({}, defaultOptions2, options);
-      if (this.options.ignoreAttributes === true || this.options.attributesGroupName) {
+      if (this.options.ignoreAttributes || this.options.attributesGroupName) {
         this.isAttribute = function() {
           return false;
         };
       } else {
-        this.ignoreAttributesFn = getIgnoreAttributesFn(this.options.ignoreAttributes);
         this.attrPrefixLen = this.options.attributeNamePrefix.length;
         this.isAttribute = isAttribute;
       }
@@ -15437,13 +16382,12 @@ var require_json2xml = __commonJS({
             [this.options.arrayNodeName]: jObj
           };
         }
-        return this.j2x(jObj, 0, []).val;
+        return this.j2x(jObj, 0).val;
       }
     };
-    Builder.prototype.j2x = function(jObj, level, ajPath) {
+    Builder.prototype.j2x = function(jObj, level) {
       let attrStr = "";
       let val3 = "";
-      const jPath = ajPath.join(".");
       for (let key in jObj) {
         if (!Object.prototype.hasOwnProperty.call(jObj, key)) continue;
         if (typeof jObj[key] === "undefined") {
@@ -15462,9 +16406,9 @@ var require_json2xml = __commonJS({
           val3 += this.buildTextValNode(jObj[key], key, "", level);
         } else if (typeof jObj[key] !== "object") {
           const attr2 = this.isAttribute(key);
-          if (attr2 && !this.ignoreAttributesFn(attr2, jPath)) {
+          if (attr2) {
             attrStr += this.buildAttrPairStr(attr2, "" + jObj[key]);
-          } else if (!attr2) {
+          } else {
             if (key === this.options.textNodeName) {
               let newval = this.options.tagValueProcessor(key, "" + jObj[key]);
               val3 += this.replaceEntitiesValue(newval);
@@ -15484,13 +16428,13 @@ var require_json2xml = __commonJS({
               else val3 += this.indentate(level) + "<" + key + "/" + this.tagEndChar;
             } else if (typeof item === "object") {
               if (this.options.oneListGroup) {
-                const result = this.j2x(item, level + 1, ajPath.concat(key));
+                const result = this.j2x(item, level + 1);
                 listTagVal += result.val;
                 if (this.options.attributesGroupName && item.hasOwnProperty(this.options.attributesGroupName)) {
                   listTagAttr += result.attrStr;
                 }
               } else {
-                listTagVal += this.processTextOrObjNode(item, key, level, ajPath);
+                listTagVal += this.processTextOrObjNode(item, key, level);
               }
             } else {
               if (this.options.oneListGroup) {
@@ -15514,7 +16458,7 @@ var require_json2xml = __commonJS({
               attrStr += this.buildAttrPairStr(Ks[j], "" + jObj[key][Ks[j]]);
             }
           } else {
-            val3 += this.processTextOrObjNode(jObj[key], key, level, ajPath);
+            val3 += this.processTextOrObjNode(jObj[key], key, level);
           }
         }
       }
@@ -15527,8 +16471,8 @@ var require_json2xml = __commonJS({
         return " " + attrName;
       } else return " " + attrName + '="' + val3 + '"';
     };
-    function processTextOrObjNode(object, key, level, ajPath) {
-      const result = this.j2x(object, level + 1, ajPath.concat(key));
+    function processTextOrObjNode(object, key, level) {
+      const result = this.j2x(object, level + 1);
       if (object[this.options.textNodeName] !== void 0 && Object.keys(object).length === 1) {
         return this.buildTextValNode(object[this.options.textNodeName], key, result.attrStr, level);
       } else {
@@ -15723,7 +16667,7 @@ var require_parse = __commonJS({
     function isWhitespace3(c) {
       return c === 32 || c === 9 || c === 10 || c === 12 || c === 13;
     }
-    function parse9(selector) {
+    function parse8(selector) {
       var subselects2 = [];
       var endIndex = parseSelector(subselects2, "".concat(selector), 0);
       if (endIndex < selector.length) {
@@ -15731,7 +16675,7 @@ var require_parse = __commonJS({
       }
       return subselects2;
     }
-    exports2.parse = parse9;
+    exports2.parse = parse8;
     function parseSelector(subselects2, selector, selectorIndex) {
       var tokens = [];
       function getName2(offset) {
@@ -15810,7 +16754,6 @@ var require_parse = __commonJS({
       loop: while (selectorIndex < selector.length) {
         var firstChar = selector.charCodeAt(selectorIndex);
         switch (firstChar) {
-          // Whitespace
           case 32:
           case 9:
           case 10:
@@ -15823,7 +16766,6 @@ var require_parse = __commonJS({
             stripWhitespace(1);
             break;
           }
-          // Traversals
           case 62: {
             addTraversal(types_1.SelectorType.Child);
             stripWhitespace(1);
@@ -15844,7 +16786,6 @@ var require_parse = __commonJS({
             stripWhitespace(1);
             break;
           }
-          // Special attribute selectors: .class, #id
           case 46: {
             addSpecialAttribute("class", types_1.AttributeAction.Element);
             break;
@@ -16066,7 +17007,6 @@ var require_stringify = __commonJS({
     exports2.stringify = stringify3;
     function stringifyToken(token, index2, arr) {
       switch (token.type) {
-        // Simple types
         case types_1.SelectorType.Child:
           return index2 === 0 ? "> " : " > ";
         case types_1.SelectorType.Parent:
@@ -18484,19 +19424,16 @@ var require_js2xml = __commonJS({
                 return true;
               }
               break;
-            // skip to next key
             case "cdata":
               if (options.indentCdata) {
                 return true;
               }
               break;
-            // skip to next key
             case "instruction":
               if (options.indentInstruction) {
                 return true;
               }
               break;
-            // skip to next key
             case "doctype":
             case "comment":
             case "element":
@@ -18567,25 +19504,21 @@ var require_js2xml = __commonJS({
             case options.parentKey:
             case options.attributesKey:
               break;
-            // skip to next key
             case options.textKey:
               if (options.indentText || anyContent) {
                 return true;
               }
               break;
-            // skip to next key
             case options.cdataKey:
               if (options.indentCdata || anyContent) {
                 return true;
               }
               break;
-            // skip to next key
             case options.instructionKey:
               if (options.indentInstruction || anyContent) {
                 return true;
               }
               break;
-            // skip to next key
             case options.doctypeKey:
             case options.commentKey:
               return true;
@@ -18652,7 +19585,6 @@ var require_js2xml = __commonJS({
               case options.attributesKey:
               case options.parentKey:
                 break;
-              // skip
               case options.textKey:
                 xml2.push((options.indentText ? writeIndentation(options, depth, firstLine) : "") + writeText(nodes[i], options));
                 break;
@@ -23922,1017 +24854,31 @@ var createBigNumberClass = /* @__PURE__ */ factory(name2, dependencies3, (_ref) 
   isClass: true
 });
 
-// node_modules/complex.js/dist/complex.mjs
-var cosh3 = Math.cosh || function(x) {
-  return Math.abs(x) < 1e-9 ? 1 - x : (Math.exp(x) + Math.exp(-x)) * 0.5;
-};
-var sinh3 = Math.sinh || function(x) {
-  return Math.abs(x) < 1e-9 ? x : (Math.exp(x) - Math.exp(-x)) * 0.5;
-};
-var cosm1 = function(x) {
-  const b = Math.PI / 4;
-  if (-b > x || x > b) {
-    return Math.cos(x) - 1;
-  }
-  const xx = x * x;
-  return xx * (xx * (xx * (xx * (xx * (xx * (xx * (xx / 20922789888e3 - 1 / 87178291200) + 1 / 479001600) - 1 / 3628800) + 1 / 40320) - 1 / 720) + 1 / 24) - 1 / 2);
-};
-var hypot2 = function(x, y) {
-  x = Math.abs(x);
-  y = Math.abs(y);
-  if (x < y) [x, y] = [y, x];
-  if (x < 1e8) return Math.sqrt(x * x + y * y);
-  y /= x;
-  return x * Math.sqrt(1 + y * y);
-};
-var parser_exit = function() {
-  throw SyntaxError("Invalid Param");
-};
-function logHypot(a, b) {
-  const _a2 = Math.abs(a);
-  const _b = Math.abs(b);
-  if (a === 0) {
-    return Math.log(_b);
-  }
-  if (b === 0) {
-    return Math.log(_a2);
-  }
-  if (_a2 < 3e3 && _b < 3e3) {
-    return Math.log(a * a + b * b) * 0.5;
-  }
-  a = a * 0.5;
-  b = b * 0.5;
-  return 0.5 * Math.log(a * a + b * b) + Math.LN2;
-}
-var P2 = { "re": 0, "im": 0 };
-var parse = function(a, b) {
-  const z = P2;
-  if (a === void 0 || a === null) {
-    z["re"] = z["im"] = 0;
-  } else if (b !== void 0) {
-    z["re"] = a;
-    z["im"] = b;
-  } else
-    switch (typeof a) {
-      case "object":
-        if ("im" in a && "re" in a) {
-          z["re"] = a["re"];
-          z["im"] = a["im"];
-        } else if ("abs" in a && "arg" in a) {
-          if (!isFinite(a["abs"]) && isFinite(a["arg"])) {
-            return Complex["INFINITY"];
-          }
-          z["re"] = a["abs"] * Math.cos(a["arg"]);
-          z["im"] = a["abs"] * Math.sin(a["arg"]);
-        } else if ("r" in a && "phi" in a) {
-          if (!isFinite(a["r"]) && isFinite(a["phi"])) {
-            return Complex["INFINITY"];
-          }
-          z["re"] = a["r"] * Math.cos(a["phi"]);
-          z["im"] = a["r"] * Math.sin(a["phi"]);
-        } else if (a.length === 2) {
-          z["re"] = a[0];
-          z["im"] = a[1];
-        } else {
-          parser_exit();
-        }
-        break;
-      case "string":
-        z["im"] = /* void */
-        z["re"] = 0;
-        const tokens = a.replace(/_/g, "").match(/\d+\.?\d*e[+-]?\d+|\d+\.?\d*|\.\d+|./g);
-        let plus = 1;
-        let minus = 0;
-        if (tokens === null) {
-          parser_exit();
-        }
-        for (let i = 0; i < tokens.length; i++) {
-          const c = tokens[i];
-          if (c === " " || c === "	" || c === "\n") {
-          } else if (c === "+") {
-            plus++;
-          } else if (c === "-") {
-            minus++;
-          } else if (c === "i" || c === "I") {
-            if (plus + minus === 0) {
-              parser_exit();
-            }
-            if (tokens[i + 1] !== " " && !isNaN(tokens[i + 1])) {
-              z["im"] += parseFloat((minus % 2 ? "-" : "") + tokens[i + 1]);
-              i++;
-            } else {
-              z["im"] += parseFloat((minus % 2 ? "-" : "") + "1");
-            }
-            plus = minus = 0;
-          } else {
-            if (plus + minus === 0 || isNaN(c)) {
-              parser_exit();
-            }
-            if (tokens[i + 1] === "i" || tokens[i + 1] === "I") {
-              z["im"] += parseFloat((minus % 2 ? "-" : "") + c);
-              i++;
-            } else {
-              z["re"] += parseFloat((minus % 2 ? "-" : "") + c);
-            }
-            plus = minus = 0;
-          }
-        }
-        if (plus + minus > 0) {
-          parser_exit();
-        }
-        break;
-      case "number":
-        z["im"] = 0;
-        z["re"] = a;
-        break;
-      default:
-        parser_exit();
-    }
-  if (isNaN(z["re"]) || isNaN(z["im"])) {
-  }
-  return z;
-};
-function Complex(a, b) {
-  if (!(this instanceof Complex)) {
-    return new Complex(a, b);
-  }
-  const z = parse(a, b);
-  this["re"] = z["re"];
-  this["im"] = z["im"];
-}
-Complex.prototype = {
-  "re": 0,
-  "im": 0,
-  /**
-   * Calculates the sign of a complex number, which is a normalized complex
-   *
-   * @returns {Complex}
-   */
-  "sign": function() {
-    const abs3 = hypot2(this["re"], this["im"]);
-    return new Complex(
-      this["re"] / abs3,
-      this["im"] / abs3
-    );
-  },
-  /**
-   * Adds two complex numbers
-   *
-   * @returns {Complex}
-   */
-  "add": function(a, b) {
-    const z = parse(a, b);
-    const tInfin = this["isInfinite"]();
-    const zInfin = !(isFinite(z["re"]) && isFinite(z["im"]));
-    if (tInfin || zInfin) {
-      if (tInfin && zInfin) {
-        return Complex["NAN"];
-      }
-      return Complex["INFINITY"];
-    }
-    return new Complex(
-      this["re"] + z["re"],
-      this["im"] + z["im"]
-    );
-  },
-  /**
-   * Subtracts two complex numbers
-   *
-   * @returns {Complex}
-   */
-  "sub": function(a, b) {
-    const z = parse(a, b);
-    const tInfin = this["isInfinite"]();
-    const zInfin = !(isFinite(z["re"]) && isFinite(z["im"]));
-    if (tInfin || zInfin) {
-      if (tInfin && zInfin) {
-        return Complex["NAN"];
-      }
-      return Complex["INFINITY"];
-    }
-    return new Complex(
-      this["re"] - z["re"],
-      this["im"] - z["im"]
-    );
-  },
-  /**
-   * Multiplies two complex numbers
-   *
-   * @returns {Complex}
-   */
-  "mul": function(a, b) {
-    const z = parse(a, b);
-    const tInfin = this["isInfinite"]();
-    const zInfin = !(isFinite(z["re"]) && isFinite(z["im"]));
-    const tIsZero = this["re"] === 0 && this["im"] === 0;
-    const zIsZero = z["re"] === 0 && z["im"] === 0;
-    if (tInfin && zIsZero || zInfin && tIsZero) {
-      return Complex["NAN"];
-    }
-    if (tInfin || zInfin) {
-      return Complex["INFINITY"];
-    }
-    if (z["im"] === 0 && this["im"] === 0) {
-      return new Complex(this["re"] * z["re"], 0);
-    }
-    return new Complex(
-      this["re"] * z["re"] - this["im"] * z["im"],
-      this["re"] * z["im"] + this["im"] * z["re"]
-    );
-  },
-  /**
-   * Divides two complex numbers
-   *
-   * @returns {Complex}
-   */
-  "div": function(a, b) {
-    const z = parse(a, b);
-    const tInfin = this["isInfinite"]();
-    const zInfin = !(isFinite(z["re"]) && isFinite(z["im"]));
-    const tIsZero = this["re"] === 0 && this["im"] === 0;
-    const zIsZero = z["re"] === 0 && z["im"] === 0;
-    if (tIsZero && zIsZero || tInfin && zInfin) {
-      return Complex["NAN"];
-    }
-    if (zIsZero || tInfin) {
-      return Complex["INFINITY"];
-    }
-    if (tIsZero || zInfin) {
-      return Complex["ZERO"];
-    }
-    if (0 === z["im"]) {
-      return new Complex(this["re"] / z["re"], this["im"] / z["re"]);
-    }
-    if (Math.abs(z["re"]) < Math.abs(z["im"])) {
-      const x = z["re"] / z["im"];
-      const t = z["re"] * x + z["im"];
-      return new Complex(
-        (this["re"] * x + this["im"]) / t,
-        (this["im"] * x - this["re"]) / t
-      );
-    } else {
-      const x = z["im"] / z["re"];
-      const t = z["im"] * x + z["re"];
-      return new Complex(
-        (this["re"] + this["im"] * x) / t,
-        (this["im"] - this["re"] * x) / t
-      );
-    }
-  },
-  /**
-   * Calculate the power of two complex numbers
-   *
-   * @returns {Complex}
-   */
-  "pow": function(a, b) {
-    const z = parse(a, b);
-    const tIsZero = this["re"] === 0 && this["im"] === 0;
-    const zIsZero = z["re"] === 0 && z["im"] === 0;
-    if (zIsZero) {
-      return Complex["ONE"];
-    }
-    if (z["im"] === 0) {
-      if (this["im"] === 0 && this["re"] > 0) {
-        return new Complex(Math.pow(this["re"], z["re"]), 0);
-      } else if (this["re"] === 0) {
-        switch ((z["re"] % 4 + 4) % 4) {
-          case 0:
-            return new Complex(Math.pow(this["im"], z["re"]), 0);
-          case 1:
-            return new Complex(0, Math.pow(this["im"], z["re"]));
-          case 2:
-            return new Complex(-Math.pow(this["im"], z["re"]), 0);
-          case 3:
-            return new Complex(0, -Math.pow(this["im"], z["re"]));
-        }
-      }
-    }
-    if (tIsZero && z["re"] > 0) {
-      return Complex["ZERO"];
-    }
-    const arg = Math.atan2(this["im"], this["re"]);
-    const loh = logHypot(this["re"], this["im"]);
-    let re = Math.exp(z["re"] * loh - z["im"] * arg);
-    let im = z["im"] * loh + z["re"] * arg;
-    return new Complex(
-      re * Math.cos(im),
-      re * Math.sin(im)
-    );
-  },
-  /**
-   * Calculate the complex square root
-   *
-   * @returns {Complex}
-   */
-  "sqrt": function() {
-    const a = this["re"];
-    const b = this["im"];
-    if (b === 0) {
-      if (a >= 0) {
-        return new Complex(Math.sqrt(a), 0);
-      } else {
-        return new Complex(0, Math.sqrt(-a));
-      }
-    }
-    const r = hypot2(a, b);
-    let re = Math.sqrt(0.5 * (r + Math.abs(a)));
-    let im = Math.abs(b) / (2 * re);
-    if (a >= 0) {
-      return new Complex(re, b < 0 ? -im : im);
-    } else {
-      return new Complex(im, b < 0 ? -re : re);
-    }
-  },
-  /**
-   * Calculate the complex exponent
-   *
-   * @returns {Complex}
-   */
-  "exp": function() {
-    const er = Math.exp(this["re"]);
-    if (this["im"] === 0) {
-      return new Complex(er, 0);
-    }
-    return new Complex(
-      er * Math.cos(this["im"]),
-      er * Math.sin(this["im"])
-    );
-  },
-  /**
-   * Calculate the complex exponent and subtracts one.
-   *
-   * This may be more accurate than `Complex(x).exp().sub(1)` if
-   * `x` is small.
-   *
-   * @returns {Complex}
-   */
-  "expm1": function() {
-    const a = this["re"];
-    const b = this["im"];
-    return new Complex(
-      Math.expm1(a) * Math.cos(b) + cosm1(b),
-      Math.exp(a) * Math.sin(b)
-    );
-  },
-  /**
-   * Calculate the natural log
-   *
-   * @returns {Complex}
-   */
-  "log": function() {
-    const a = this["re"];
-    const b = this["im"];
-    if (b === 0 && a > 0) {
-      return new Complex(Math.log(a), 0);
-    }
-    return new Complex(
-      logHypot(a, b),
-      Math.atan2(b, a)
-    );
-  },
-  /**
-   * Calculate the magnitude of the complex number
-   *
-   * @returns {number}
-   */
-  "abs": function() {
-    return hypot2(this["re"], this["im"]);
-  },
-  /**
-   * Calculate the angle of the complex number
-   *
-   * @returns {number}
-   */
-  "arg": function() {
-    return Math.atan2(this["im"], this["re"]);
-  },
-  /**
-   * Calculate the sine of the complex number
-   *
-   * @returns {Complex}
-   */
-  "sin": function() {
-    const a = this["re"];
-    const b = this["im"];
-    return new Complex(
-      Math.sin(a) * cosh3(b),
-      Math.cos(a) * sinh3(b)
-    );
-  },
-  /**
-   * Calculate the cosine
-   *
-   * @returns {Complex}
-   */
-  "cos": function() {
-    const a = this["re"];
-    const b = this["im"];
-    return new Complex(
-      Math.cos(a) * cosh3(b),
-      -Math.sin(a) * sinh3(b)
-    );
-  },
-  /**
-   * Calculate the tangent
-   *
-   * @returns {Complex}
-   */
-  "tan": function() {
-    const a = 2 * this["re"];
-    const b = 2 * this["im"];
-    const d = Math.cos(a) + cosh3(b);
-    return new Complex(
-      Math.sin(a) / d,
-      sinh3(b) / d
-    );
-  },
-  /**
-   * Calculate the cotangent
-   *
-   * @returns {Complex}
-   */
-  "cot": function() {
-    const a = 2 * this["re"];
-    const b = 2 * this["im"];
-    const d = Math.cos(a) - cosh3(b);
-    return new Complex(
-      -Math.sin(a) / d,
-      sinh3(b) / d
-    );
-  },
-  /**
-   * Calculate the secant
-   *
-   * @returns {Complex}
-   */
-  "sec": function() {
-    const a = this["re"];
-    const b = this["im"];
-    const d = 0.5 * cosh3(2 * b) + 0.5 * Math.cos(2 * a);
-    return new Complex(
-      Math.cos(a) * cosh3(b) / d,
-      Math.sin(a) * sinh3(b) / d
-    );
-  },
-  /**
-   * Calculate the cosecans
-   *
-   * @returns {Complex}
-   */
-  "csc": function() {
-    const a = this["re"];
-    const b = this["im"];
-    const d = 0.5 * cosh3(2 * b) - 0.5 * Math.cos(2 * a);
-    return new Complex(
-      Math.sin(a) * cosh3(b) / d,
-      -Math.cos(a) * sinh3(b) / d
-    );
-  },
-  /**
-   * Calculate the complex arcus sinus
-   *
-   * @returns {Complex}
-   */
-  "asin": function() {
-    const a = this["re"];
-    const b = this["im"];
-    const t1 = new Complex(
-      b * b - a * a + 1,
-      -2 * a * b
-    )["sqrt"]();
-    const t2 = new Complex(
-      t1["re"] - b,
-      t1["im"] + a
-    )["log"]();
-    return new Complex(t2["im"], -t2["re"]);
-  },
-  /**
-   * Calculate the complex arcus cosinus
-   *
-   * @returns {Complex}
-   */
-  "acos": function() {
-    const a = this["re"];
-    const b = this["im"];
-    const t1 = new Complex(
-      b * b - a * a + 1,
-      -2 * a * b
-    )["sqrt"]();
-    const t2 = new Complex(
-      t1["re"] - b,
-      t1["im"] + a
-    )["log"]();
-    return new Complex(Math.PI / 2 - t2["im"], t2["re"]);
-  },
-  /**
-   * Calculate the complex arcus tangent
-   *
-   * @returns {Complex}
-   */
-  "atan": function() {
-    const a = this["re"];
-    const b = this["im"];
-    if (a === 0) {
-      if (b === 1) {
-        return new Complex(0, Infinity);
-      }
-      if (b === -1) {
-        return new Complex(0, -Infinity);
-      }
-    }
-    const d = a * a + (1 - b) * (1 - b);
-    const t1 = new Complex(
-      (1 - b * b - a * a) / d,
-      -2 * a / d
-    ).log();
-    return new Complex(-0.5 * t1["im"], 0.5 * t1["re"]);
-  },
-  /**
-   * Calculate the complex arcus cotangent
-   *
-   * @returns {Complex}
-   */
-  "acot": function() {
-    const a = this["re"];
-    const b = this["im"];
-    if (b === 0) {
-      return new Complex(Math.atan2(1, a), 0);
-    }
-    const d = a * a + b * b;
-    return d !== 0 ? new Complex(
-      a / d,
-      -b / d
-    ).atan() : new Complex(
-      a !== 0 ? a / 0 : 0,
-      b !== 0 ? -b / 0 : 0
-    ).atan();
-  },
-  /**
-   * Calculate the complex arcus secant
-   *
-   * @returns {Complex}
-   */
-  "asec": function() {
-    const a = this["re"];
-    const b = this["im"];
-    if (a === 0 && b === 0) {
-      return new Complex(0, Infinity);
-    }
-    const d = a * a + b * b;
-    return d !== 0 ? new Complex(
-      a / d,
-      -b / d
-    ).acos() : new Complex(
-      a !== 0 ? a / 0 : 0,
-      b !== 0 ? -b / 0 : 0
-    ).acos();
-  },
-  /**
-   * Calculate the complex arcus cosecans
-   *
-   * @returns {Complex}
-   */
-  "acsc": function() {
-    const a = this["re"];
-    const b = this["im"];
-    if (a === 0 && b === 0) {
-      return new Complex(Math.PI / 2, Infinity);
-    }
-    const d = a * a + b * b;
-    return d !== 0 ? new Complex(
-      a / d,
-      -b / d
-    ).asin() : new Complex(
-      a !== 0 ? a / 0 : 0,
-      b !== 0 ? -b / 0 : 0
-    ).asin();
-  },
-  /**
-   * Calculate the complex sinh
-   *
-   * @returns {Complex}
-   */
-  "sinh": function() {
-    const a = this["re"];
-    const b = this["im"];
-    return new Complex(
-      sinh3(a) * Math.cos(b),
-      cosh3(a) * Math.sin(b)
-    );
-  },
-  /**
-   * Calculate the complex cosh
-   *
-   * @returns {Complex}
-   */
-  "cosh": function() {
-    const a = this["re"];
-    const b = this["im"];
-    return new Complex(
-      cosh3(a) * Math.cos(b),
-      sinh3(a) * Math.sin(b)
-    );
-  },
-  /**
-   * Calculate the complex tanh
-   *
-   * @returns {Complex}
-   */
-  "tanh": function() {
-    const a = 2 * this["re"];
-    const b = 2 * this["im"];
-    const d = cosh3(a) + Math.cos(b);
-    return new Complex(
-      sinh3(a) / d,
-      Math.sin(b) / d
-    );
-  },
-  /**
-   * Calculate the complex coth
-   *
-   * @returns {Complex}
-   */
-  "coth": function() {
-    const a = 2 * this["re"];
-    const b = 2 * this["im"];
-    const d = cosh3(a) - Math.cos(b);
-    return new Complex(
-      sinh3(a) / d,
-      -Math.sin(b) / d
-    );
-  },
-  /**
-   * Calculate the complex coth
-   *
-   * @returns {Complex}
-   */
-  "csch": function() {
-    const a = this["re"];
-    const b = this["im"];
-    const d = Math.cos(2 * b) - cosh3(2 * a);
-    return new Complex(
-      -2 * sinh3(a) * Math.cos(b) / d,
-      2 * cosh3(a) * Math.sin(b) / d
-    );
-  },
-  /**
-   * Calculate the complex sech
-   *
-   * @returns {Complex}
-   */
-  "sech": function() {
-    const a = this["re"];
-    const b = this["im"];
-    const d = Math.cos(2 * b) + cosh3(2 * a);
-    return new Complex(
-      2 * cosh3(a) * Math.cos(b) / d,
-      -2 * sinh3(a) * Math.sin(b) / d
-    );
-  },
-  /**
-   * Calculate the complex asinh
-   *
-   * @returns {Complex}
-   */
-  "asinh": function() {
-    let tmp = this["im"];
-    this["im"] = -this["re"];
-    this["re"] = tmp;
-    const res = this["asin"]();
-    this["re"] = -this["im"];
-    this["im"] = tmp;
-    tmp = res["re"];
-    res["re"] = -res["im"];
-    res["im"] = tmp;
-    return res;
-  },
-  /**
-   * Calculate the complex acosh
-   *
-   * @returns {Complex}
-   */
-  "acosh": function() {
-    const res = this["acos"]();
-    if (res["im"] <= 0) {
-      const tmp = res["re"];
-      res["re"] = -res["im"];
-      res["im"] = tmp;
-    } else {
-      const tmp = res["im"];
-      res["im"] = -res["re"];
-      res["re"] = tmp;
-    }
-    return res;
-  },
-  /**
-   * Calculate the complex atanh
-   *
-   * @returns {Complex}
-   */
-  "atanh": function() {
-    const a = this["re"];
-    const b = this["im"];
-    const noIM = a > 1 && b === 0;
-    const oneMinus = 1 - a;
-    const onePlus = 1 + a;
-    const d = oneMinus * oneMinus + b * b;
-    const x = d !== 0 ? new Complex(
-      (onePlus * oneMinus - b * b) / d,
-      (b * oneMinus + onePlus * b) / d
-    ) : new Complex(
-      a !== -1 ? a / 0 : 0,
-      b !== 0 ? b / 0 : 0
-    );
-    const temp = x["re"];
-    x["re"] = logHypot(x["re"], x["im"]) / 2;
-    x["im"] = Math.atan2(x["im"], temp) / 2;
-    if (noIM) {
-      x["im"] = -x["im"];
-    }
-    return x;
-  },
-  /**
-   * Calculate the complex acoth
-   *
-   * @returns {Complex}
-   */
-  "acoth": function() {
-    const a = this["re"];
-    const b = this["im"];
-    if (a === 0 && b === 0) {
-      return new Complex(0, Math.PI / 2);
-    }
-    const d = a * a + b * b;
-    return d !== 0 ? new Complex(
-      a / d,
-      -b / d
-    ).atanh() : new Complex(
-      a !== 0 ? a / 0 : 0,
-      b !== 0 ? -b / 0 : 0
-    ).atanh();
-  },
-  /**
-   * Calculate the complex acsch
-   *
-   * @returns {Complex}
-   */
-  "acsch": function() {
-    const a = this["re"];
-    const b = this["im"];
-    if (b === 0) {
-      return new Complex(
-        a !== 0 ? Math.log(a + Math.sqrt(a * a + 1)) : Infinity,
-        0
-      );
-    }
-    const d = a * a + b * b;
-    return d !== 0 ? new Complex(
-      a / d,
-      -b / d
-    ).asinh() : new Complex(
-      a !== 0 ? a / 0 : 0,
-      b !== 0 ? -b / 0 : 0
-    ).asinh();
-  },
-  /**
-   * Calculate the complex asech
-   *
-   * @returns {Complex}
-   */
-  "asech": function() {
-    const a = this["re"];
-    const b = this["im"];
-    if (this["isZero"]()) {
-      return Complex["INFINITY"];
-    }
-    const d = a * a + b * b;
-    return d !== 0 ? new Complex(
-      a / d,
-      -b / d
-    ).acosh() : new Complex(
-      a !== 0 ? a / 0 : 0,
-      b !== 0 ? -b / 0 : 0
-    ).acosh();
-  },
-  /**
-   * Calculate the complex inverse 1/z
-   *
-   * @returns {Complex}
-   */
-  "inverse": function() {
-    if (this["isZero"]()) {
-      return Complex["INFINITY"];
-    }
-    if (this["isInfinite"]()) {
-      return Complex["ZERO"];
-    }
-    const a = this["re"];
-    const b = this["im"];
-    const d = a * a + b * b;
-    return new Complex(a / d, -b / d);
-  },
-  /**
-   * Returns the complex conjugate
-   *
-   * @returns {Complex}
-   */
-  "conjugate": function() {
-    return new Complex(this["re"], -this["im"]);
-  },
-  /**
-   * Gets the negated complex number
-   *
-   * @returns {Complex}
-   */
-  "neg": function() {
-    return new Complex(-this["re"], -this["im"]);
-  },
-  /**
-   * Ceils the actual complex number
-   *
-   * @returns {Complex}
-   */
-  "ceil": function(places) {
-    places = Math.pow(10, places || 0);
-    return new Complex(
-      Math.ceil(this["re"] * places) / places,
-      Math.ceil(this["im"] * places) / places
-    );
-  },
-  /**
-   * Floors the actual complex number
-   *
-   * @returns {Complex}
-   */
-  "floor": function(places) {
-    places = Math.pow(10, places || 0);
-    return new Complex(
-      Math.floor(this["re"] * places) / places,
-      Math.floor(this["im"] * places) / places
-    );
-  },
-  /**
-   * Ceils the actual complex number
-   *
-   * @returns {Complex}
-   */
-  "round": function(places) {
-    places = Math.pow(10, places || 0);
-    return new Complex(
-      Math.round(this["re"] * places) / places,
-      Math.round(this["im"] * places) / places
-    );
-  },
-  /**
-   * Compares two complex numbers
-   *
-   * **Note:** new Complex(Infinity).equals(Infinity) === false
-   *
-   * @returns {boolean}
-   */
-  "equals": function(a, b) {
-    const z = parse(a, b);
-    return Math.abs(z["re"] - this["re"]) <= Complex["EPSILON"] && Math.abs(z["im"] - this["im"]) <= Complex["EPSILON"];
-  },
-  /**
-   * Clones the actual object
-   *
-   * @returns {Complex}
-   */
-  "clone": function() {
-    return new Complex(this["re"], this["im"]);
-  },
-  /**
-   * Gets a string of the actual complex number
-   *
-   * @returns {string}
-   */
-  "toString": function() {
-    let a = this["re"];
-    let b = this["im"];
-    let ret = "";
-    if (this["isNaN"]()) {
-      return "NaN";
-    }
-    if (this["isInfinite"]()) {
-      return "Infinity";
-    }
-    if (Math.abs(a) < Complex["EPSILON"]) {
-      a = 0;
-    }
-    if (Math.abs(b) < Complex["EPSILON"]) {
-      b = 0;
-    }
-    if (b === 0) {
-      return ret + a;
-    }
-    if (a !== 0) {
-      ret += a;
-      ret += " ";
-      if (b < 0) {
-        b = -b;
-        ret += "-";
-      } else {
-        ret += "+";
-      }
-      ret += " ";
-    } else if (b < 0) {
-      b = -b;
-      ret += "-";
-    }
-    if (1 !== b) {
-      ret += b;
-    }
-    return ret + "i";
-  },
-  /**
-   * Returns the actual number as a vector
-   *
-   * @returns {Array}
-   */
-  "toVector": function() {
-    return [this["re"], this["im"]];
-  },
-  /**
-   * Returns the actual real value of the current object
-   *
-   * @returns {number|null}
-   */
-  "valueOf": function() {
-    if (this["im"] === 0) {
-      return this["re"];
-    }
-    return null;
-  },
-  /**
-   * Determines whether a complex number is not on the Riemann sphere.
-   *
-   * @returns {boolean}
-   */
-  "isNaN": function() {
-    return isNaN(this["re"]) || isNaN(this["im"]);
-  },
-  /**
-   * Determines whether or not a complex number is at the zero pole of the
-   * Riemann sphere.
-   *
-   * @returns {boolean}
-   */
-  "isZero": function() {
-    return this["im"] === 0 && this["re"] === 0;
-  },
-  /**
-   * Determines whether a complex number is not at the infinity pole of the
-   * Riemann sphere.
-   *
-   * @returns {boolean}
-   */
-  "isFinite": function() {
-    return isFinite(this["re"]) && isFinite(this["im"]);
-  },
-  /**
-   * Determines whether or not a complex number is at the infinity pole of the
-   * Riemann sphere.
-   *
-   * @returns {boolean}
-   */
-  "isInfinite": function() {
-    return !this["isFinite"]();
-  }
-};
-Complex["ZERO"] = new Complex(0, 0);
-Complex["ONE"] = new Complex(1, 0);
-Complex["I"] = new Complex(0, 1);
-Complex["PI"] = new Complex(Math.PI, 0);
-Complex["E"] = new Complex(Math.E, 0);
-Complex["INFINITY"] = new Complex(Infinity, Infinity);
-Complex["NAN"] = new Complex(NaN, NaN);
-Complex["EPSILON"] = 1e-15;
-
 // node_modules/mathjs/lib/esm/type/complex/Complex.js
+var import_complex = __toESM(require_complex(), 1);
 var name3 = "Complex";
 var dependencies4 = [];
 var createComplexClass = /* @__PURE__ */ factory(name3, dependencies4, () => {
-  Object.defineProperty(Complex, "name", {
+  Object.defineProperty(import_complex.default, "name", {
     value: "Complex"
   });
-  Complex.prototype.constructor = Complex;
-  Complex.prototype.type = "Complex";
-  Complex.prototype.isComplex = true;
-  Complex.prototype.toJSON = function() {
+  import_complex.default.prototype.constructor = import_complex.default;
+  import_complex.default.prototype.type = "Complex";
+  import_complex.default.prototype.isComplex = true;
+  import_complex.default.prototype.toJSON = function() {
     return {
       mathjs: "Complex",
       re: this.re,
       im: this.im
     };
   };
-  Complex.prototype.toPolar = function() {
+  import_complex.default.prototype.toPolar = function() {
     return {
       r: this.abs(),
       phi: this.arg()
     };
   };
-  Complex.prototype.format = function(options) {
+  import_complex.default.prototype.format = function(options) {
     var str = "";
     var im = this.im;
     var re = this.re;
@@ -24975,12 +24921,12 @@ var createComplexClass = /* @__PURE__ */ factory(name3, dependencies4, () => {
     }
     return str;
   };
-  Complex.fromPolar = function(args) {
+  import_complex.default.fromPolar = function(args) {
     switch (arguments.length) {
       case 1: {
         var arg = arguments[0];
         if (typeof arg === "object") {
-          return Complex(arg);
+          return (0, import_complex.default)(arg);
         } else {
           throw new TypeError("Input has to be an object with r and phi keys.");
         }
@@ -24993,7 +24939,7 @@ var createComplexClass = /* @__PURE__ */ factory(name3, dependencies4, () => {
             phi2 = phi2.toNumber("rad");
           }
           if (isNumber(phi2)) {
-            return new Complex({
+            return new import_complex.default({
               r,
               phi: phi2
             });
@@ -25007,11 +24953,11 @@ var createComplexClass = /* @__PURE__ */ factory(name3, dependencies4, () => {
         throw new SyntaxError("Wrong number of arguments in function fromPolar");
     }
   };
-  Complex.prototype.valueOf = Complex.prototype.toString;
-  Complex.fromJSON = function(json) {
-    return new Complex(json);
+  import_complex.default.prototype.valueOf = import_complex.default.prototype.toString;
+  import_complex.default.fromJSON = function(json) {
+    return new import_complex.default(json);
   };
-  Complex.compare = function(a, b) {
+  import_complex.default.compare = function(a, b) {
     if (a.re > b.re) {
       return 1;
     }
@@ -25026,7 +24972,7 @@ var createComplexClass = /* @__PURE__ */ factory(name3, dependencies4, () => {
     }
     return 0;
   };
-  return Complex;
+  return import_complex.default;
 }, {
   isClass: true
 });
@@ -26145,7 +26091,6 @@ var createDenseMatrixClass = /* @__PURE__ */ factory(name7, dependencies8, (_ref
     switch (arguments.length) {
       case 1:
         return _get(this, index2);
-      // intentional fall through
       case 2:
       case 3:
         return _set(this, index2, replacement, defaultValue);
@@ -27578,7 +27523,6 @@ var createSparseMatrixClass = /* @__PURE__ */ factory(name18, dependencies19, (_
     switch (arguments.length) {
       case 1:
         return _getsubset(this, index2);
-      // intentional fall through
       case 2:
       case 3:
         return _setsubset(this, index2, replacement, defaultValue);
@@ -34056,38 +34000,38 @@ var createErf = /* @__PURE__ */ factory(name113, dependencies113, (_ref) => {
   });
   function erf1(y) {
     var ysq = y * y;
-    var xnum = P3[0][4] * ysq;
+    var xnum = P2[0][4] * ysq;
     var xden = ysq;
     var i;
     for (i = 0; i < 3; i += 1) {
-      xnum = (xnum + P3[0][i]) * ysq;
+      xnum = (xnum + P2[0][i]) * ysq;
       xden = (xden + Q[0][i]) * ysq;
     }
-    return y * (xnum + P3[0][3]) / (xden + Q[0][3]);
+    return y * (xnum + P2[0][3]) / (xden + Q[0][3]);
   }
   function erfc2(y) {
-    var xnum = P3[1][8] * y;
+    var xnum = P2[1][8] * y;
     var xden = y;
     var i;
     for (i = 0; i < 7; i += 1) {
-      xnum = (xnum + P3[1][i]) * y;
+      xnum = (xnum + P2[1][i]) * y;
       xden = (xden + Q[1][i]) * y;
     }
-    var result = (xnum + P3[1][7]) / (xden + Q[1][7]);
+    var result = (xnum + P2[1][7]) / (xden + Q[1][7]);
     var ysq = parseInt(y * 16) / 16;
     var del = (y - ysq) * (y + ysq);
     return Math.exp(-ysq * ysq) * Math.exp(-del) * result;
   }
   function erfc3(y) {
     var ysq = 1 / (y * y);
-    var xnum = P3[2][5] * ysq;
+    var xnum = P2[2][5] * ysq;
     var xden = ysq;
     var i;
     for (i = 0; i < 4; i += 1) {
-      xnum = (xnum + P3[2][i]) * ysq;
+      xnum = (xnum + P2[2][i]) * ysq;
       xden = (xden + Q[2][i]) * ysq;
     }
-    var result = ysq * (xnum + P3[2][4]) / (xden + Q[2][4]);
+    var result = ysq * (xnum + P2[2][4]) / (xden + Q[2][4]);
     result = (SQRPI - result) / y;
     ysq = parseInt(y * 16) / 16;
     var del = (y - ysq) * (y + ysq);
@@ -34096,7 +34040,7 @@ var createErf = /* @__PURE__ */ factory(name113, dependencies113, (_ref) => {
 });
 var THRESH = 0.46875;
 var SQRPI = 0.5641895835477563;
-var P3 = [[3.1611237438705655, 113.86415415105016, 377.485237685302, 3209.3775891384694, 0.18577770618460315], [0.5641884969886701, 8.883149794388377, 66.11919063714163, 298.6351381974001, 881.952221241769, 1712.0476126340707, 2051.0783778260716, 1230.3393547979972, 21531153547440383e-24], [0.30532663496123236, 0.36034489994980445, 0.12578172611122926, 0.016083785148742275, 6587491615298378e-19, 0.016315387137302097]];
+var P2 = [[3.1611237438705655, 113.86415415105016, 377.485237685302, 3209.3775891384694, 0.18577770618460315], [0.5641884969886701, 8.883149794388377, 66.11919063714163, 298.6351381974001, 881.952221241769, 1712.0476126340707, 2051.0783778260716, 1230.3393547979972, 21531153547440383e-24], [0.30532663496123236, 0.36034489994980445, 0.12578172611122926, 0.016083785148742275, 6587491615298378e-19, 0.016315387137302097]];
 var Q = [[23.601290952344122, 244.02463793444417, 1282.6165260773723, 2844.236833439171], [15.744926110709835, 117.6939508913125, 537.1811018620099, 1621.3895745666903, 3290.7992357334597, 4362.619090143247, 3439.3676741437216, 1230.3393548037495], [2.568520192289822, 1.8729528499234604, 0.5279051029514285, 0.06051834131244132, 0.0023352049762686918]];
 var MAX_NUM = Math.pow(2, 53);
 
@@ -36972,7 +36916,6 @@ var createImmutableDenseMatrixClass = /* @__PURE__ */ factory(name157, dependenc
         }
         return m;
       }
-      // intentional fall through
       case 2:
       case 3:
         throw new Error("Cannot invoke set subset on an Immutable Matrix instance");
@@ -45268,7 +45211,6 @@ var createOperatorNode = /* @__PURE__ */ factory(name216, dependencies216, (_ref
     if (parenthesis === "all" || args.length > 2 && root3.getIdentifier() !== "OperatorNode:add" && root3.getIdentifier() !== "OperatorNode:multiply") {
       return args.map(function(arg) {
         switch (arg.getContent().type) {
-          // Nodes that don't need extra parentheses
           case "ArrayNode":
           case "ConstantNode":
           case "SymbolNode":
@@ -45717,7 +45659,6 @@ var createOperatorNode = /* @__PURE__ */ factory(name216, dependencies216, (_ref
             rhsTex = "{" + rhsTex + "}";
             switch (lhsIdentifier) {
               case "ConditionalNode":
-              //
               case "OperatorNode:divide":
                 lhsTex = "\\left(".concat(lhsTex, "\\right)");
             }
@@ -46899,7 +46840,7 @@ var createParse = /* @__PURE__ */ factory(name222, dependencies222, (_ref) => {
     RelationalNode,
     SymbolNode
   } = _ref;
-  var parse9 = typed3(name222, {
+  var parse8 = typed3(name222, {
     string: function string(expression) {
       return parseStart(expression, {});
     },
@@ -47039,7 +46980,7 @@ var createParse = /* @__PURE__ */ factory(name222, dependencies222, (_ref) => {
           next2(state);
         }
       }
-      if (parse9.isWhitespace(currentCharacter(state), state.nestingLevel)) {
+      if (parse8.isWhitespace(currentCharacter(state), state.nestingLevel)) {
         next2(state);
       } else {
         break;
@@ -47079,7 +47020,7 @@ var createParse = /* @__PURE__ */ factory(name222, dependencies222, (_ref) => {
       next2(state);
       return;
     }
-    if (parse9.isDigitDot(c1)) {
+    if (parse8.isDigitDot(c1)) {
       state.tokenType = TOKENTYPE.NUMBER;
       var _c = currentString(state, 2);
       if (_c === "0b" || _c === "0o" || _c === "0x") {
@@ -47087,21 +47028,21 @@ var createParse = /* @__PURE__ */ factory(name222, dependencies222, (_ref) => {
         next2(state);
         state.token += currentCharacter(state);
         next2(state);
-        while (parse9.isHexDigit(currentCharacter(state))) {
+        while (parse8.isHexDigit(currentCharacter(state))) {
           state.token += currentCharacter(state);
           next2(state);
         }
         if (currentCharacter(state) === ".") {
           state.token += ".";
           next2(state);
-          while (parse9.isHexDigit(currentCharacter(state))) {
+          while (parse8.isHexDigit(currentCharacter(state))) {
             state.token += currentCharacter(state);
             next2(state);
           }
         } else if (currentCharacter(state) === "i") {
           state.token += "i";
           next2(state);
-          while (parse9.isDigit(currentCharacter(state))) {
+          while (parse8.isDigit(currentCharacter(state))) {
             state.token += currentCharacter(state);
             next2(state);
           }
@@ -47111,40 +47052,40 @@ var createParse = /* @__PURE__ */ factory(name222, dependencies222, (_ref) => {
       if (currentCharacter(state) === ".") {
         state.token += currentCharacter(state);
         next2(state);
-        if (!parse9.isDigit(currentCharacter(state))) {
+        if (!parse8.isDigit(currentCharacter(state))) {
           state.tokenType = TOKENTYPE.DELIMITER;
           return;
         }
       } else {
-        while (parse9.isDigit(currentCharacter(state))) {
+        while (parse8.isDigit(currentCharacter(state))) {
           state.token += currentCharacter(state);
           next2(state);
         }
-        if (parse9.isDecimalMark(currentCharacter(state), nextCharacter(state))) {
+        if (parse8.isDecimalMark(currentCharacter(state), nextCharacter(state))) {
           state.token += currentCharacter(state);
           next2(state);
         }
       }
-      while (parse9.isDigit(currentCharacter(state))) {
+      while (parse8.isDigit(currentCharacter(state))) {
         state.token += currentCharacter(state);
         next2(state);
       }
       if (currentCharacter(state) === "E" || currentCharacter(state) === "e") {
-        if (parse9.isDigit(nextCharacter(state)) || nextCharacter(state) === "-" || nextCharacter(state) === "+") {
+        if (parse8.isDigit(nextCharacter(state)) || nextCharacter(state) === "-" || nextCharacter(state) === "+") {
           state.token += currentCharacter(state);
           next2(state);
           if (currentCharacter(state) === "+" || currentCharacter(state) === "-") {
             state.token += currentCharacter(state);
             next2(state);
           }
-          if (!parse9.isDigit(currentCharacter(state))) {
+          if (!parse8.isDigit(currentCharacter(state))) {
             throw createSyntaxError(state, 'Digit expected, got "' + currentCharacter(state) + '"');
           }
-          while (parse9.isDigit(currentCharacter(state))) {
+          while (parse8.isDigit(currentCharacter(state))) {
             state.token += currentCharacter(state);
             next2(state);
           }
-          if (parse9.isDecimalMark(currentCharacter(state), nextCharacter(state))) {
+          if (parse8.isDecimalMark(currentCharacter(state), nextCharacter(state))) {
             throw createSyntaxError(state, 'Digit expected, got "' + currentCharacter(state) + '"');
           }
         } else if (nextCharacter(state) === ".") {
@@ -47154,8 +47095,8 @@ var createParse = /* @__PURE__ */ factory(name222, dependencies222, (_ref) => {
       }
       return;
     }
-    if (parse9.isAlpha(currentCharacter(state), prevCharacter(state), nextCharacter(state))) {
-      while (parse9.isAlpha(currentCharacter(state), prevCharacter(state), nextCharacter(state)) || parse9.isDigit(currentCharacter(state))) {
+    if (parse8.isAlpha(currentCharacter(state), prevCharacter(state), nextCharacter(state))) {
+      while (parse8.isAlpha(currentCharacter(state), prevCharacter(state), nextCharacter(state)) || parse8.isDigit(currentCharacter(state))) {
         state.token += currentCharacter(state);
         next2(state);
       }
@@ -47184,28 +47125,28 @@ var createParse = /* @__PURE__ */ factory(name222, dependencies222, (_ref) => {
   function closeParams(state) {
     state.nestingLevel--;
   }
-  parse9.isAlpha = function isAlpha(c, cPrev, cNext) {
-    return parse9.isValidLatinOrGreek(c) || parse9.isValidMathSymbol(c, cNext) || parse9.isValidMathSymbol(cPrev, c);
+  parse8.isAlpha = function isAlpha(c, cPrev, cNext) {
+    return parse8.isValidLatinOrGreek(c) || parse8.isValidMathSymbol(c, cNext) || parse8.isValidMathSymbol(cPrev, c);
   };
-  parse9.isValidLatinOrGreek = function isValidLatinOrGreek(c) {
+  parse8.isValidLatinOrGreek = function isValidLatinOrGreek(c) {
     return /^[a-zA-Z_$\u00C0-\u02AF\u0370-\u03FF\u2100-\u214F]$/.test(c);
   };
-  parse9.isValidMathSymbol = function isValidMathSymbol(high, low) {
+  parse8.isValidMathSymbol = function isValidMathSymbol(high, low) {
     return /^[\uD835]$/.test(high) && /^[\uDC00-\uDFFF]$/.test(low) && /^[^\uDC55\uDC9D\uDCA0\uDCA1\uDCA3\uDCA4\uDCA7\uDCA8\uDCAD\uDCBA\uDCBC\uDCC4\uDD06\uDD0B\uDD0C\uDD15\uDD1D\uDD3A\uDD3F\uDD45\uDD47-\uDD49\uDD51\uDEA6\uDEA7\uDFCC\uDFCD]$/.test(low);
   };
-  parse9.isWhitespace = function isWhitespace3(c, nestingLevel) {
+  parse8.isWhitespace = function isWhitespace3(c, nestingLevel) {
     return c === " " || c === "	" || c === "\n" && nestingLevel > 0;
   };
-  parse9.isDecimalMark = function isDecimalMark(c, cNext) {
+  parse8.isDecimalMark = function isDecimalMark(c, cNext) {
     return c === "." && cNext !== "/" && cNext !== "*" && cNext !== "^";
   };
-  parse9.isDigitDot = function isDigitDot(c) {
+  parse8.isDigitDot = function isDigitDot(c) {
     return c >= "0" && c <= "9" || c === ".";
   };
-  parse9.isDigit = function isDigit(c) {
+  parse8.isDigit = function isDigit(c) {
     return c >= "0" && c <= "9";
   };
-  parse9.isHexDigit = function isHexDigit2(c) {
+  parse8.isHexDigit = function isHexDigit2(c) {
     return c >= "0" && c <= "9" || c >= "a" && c <= "f" || c >= "A" && c <= "F";
   };
   function parseStart(expression, extraNodes) {
@@ -47903,9 +47844,9 @@ var createParse = /* @__PURE__ */ factory(name222, dependencies222, (_ref) => {
   typed3.addConversion({
     from: "string",
     to: "Node",
-    convert: parse9
+    convert: parse8
   });
-  return parse9;
+  return parse8;
 });
 
 // node_modules/mathjs/lib/esm/expression/function/compile.js
@@ -47914,15 +47855,15 @@ var dependencies223 = ["typed", "parse"];
 var createCompile = /* @__PURE__ */ factory(name223, dependencies223, (_ref) => {
   var {
     typed: typed3,
-    parse: parse9
+    parse: parse8
   } = _ref;
   return typed3(name223, {
     string: function string(expr) {
-      return parse9(expr).compile();
+      return parse8(expr).compile();
     },
     "Array | Matrix": function ArrayMatrix(expr) {
       return deepMap(expr, function(entry) {
-        return parse9(entry).compile();
+        return parse8(entry).compile();
       });
     }
   });
@@ -47934,25 +47875,25 @@ var dependencies224 = ["typed", "parse"];
 var createEvaluate = /* @__PURE__ */ factory(name224, dependencies224, (_ref) => {
   var {
     typed: typed3,
-    parse: parse9
+    parse: parse8
   } = _ref;
   return typed3(name224, {
     string: function string(expr) {
       var scope = createEmptyMap();
-      return parse9(expr).compile().evaluate(scope);
+      return parse8(expr).compile().evaluate(scope);
     },
     "string, Map | Object": function stringMapObject(expr, scope) {
-      return parse9(expr).compile().evaluate(scope);
+      return parse8(expr).compile().evaluate(scope);
     },
     "Array | Matrix": function ArrayMatrix(expr) {
       var scope = createEmptyMap();
       return deepMap(expr, function(entry) {
-        return parse9(entry).compile().evaluate(scope);
+        return parse8(entry).compile().evaluate(scope);
       });
     },
     "Array | Matrix, Map | Object": function ArrayMatrixMapObject(expr, scope) {
       return deepMap(expr, function(entry) {
-        return parse9(entry).compile().evaluate(scope);
+        return parse8(entry).compile().evaluate(scope);
       });
     }
   });
@@ -48568,7 +48509,7 @@ var createCsAmd = /* @__PURE__ */ factory(name229, dependencies229, (_ref) => {
     var cindex = cm._index;
     var cptr = cm._ptr;
     var cnz = cptr[n];
-    var P4 = [];
+    var P3 = [];
     var W = [];
     var len = 0;
     var nv = n + 1;
@@ -48578,7 +48519,7 @@ var createCsAmd = /* @__PURE__ */ factory(name229, dependencies229, (_ref) => {
     var degree = 5 * (n + 1);
     var w = 6 * (n + 1);
     var hhead = 7 * (n + 1);
-    var last2 = P4;
+    var last2 = P3;
     var mark = _initializeQuotientGraph(n, cptr, W, len, head, last2, next2, hhead, nv, w, elen, degree);
     var nel = _initializeDegreeLists(n, cptr, W, degree, elen, w, dense, nv, head, last2, next2);
     var mindeg = 0;
@@ -48795,11 +48736,11 @@ var createCsAmd = /* @__PURE__ */ factory(name229, dependencies229, (_ref) => {
     }
     for (k = 0, i = 0; i <= n; i++) {
       if (cptr[i] === -1) {
-        k = csTdfs(i, k, W, head, next2, P4, w);
+        k = csTdfs(i, k, W, head, next2, P3, w);
       }
     }
-    P4.splice(P4.length - 1, 1);
-    return P4;
+    P3.splice(P3.length - 1, 1);
+    return P3;
   };
   function _createTargetMatrix(order, a, m, n, dense) {
     var at = transpose(a);
@@ -56028,7 +55969,7 @@ var name277 = "leafCount";
 var dependencies277 = ["parse", "typed"];
 var createLeafCount = /* @__PURE__ */ factory(name277, dependencies277, (_ref) => {
   var {
-    parse: parse9,
+    parse: parse8,
     typed: typed3
   } = _ref;
   function countLeaves(node) {
@@ -56324,7 +56265,7 @@ var createSimplify = /* @__PURE__ */ factory(name279, dependencies279, (_ref) =>
   var {
     config: config4,
     typed: typed3,
-    parse: parse9,
+    parse: parse8,
     add: add5,
     subtract: subtract2,
     multiply: multiply3,
@@ -56847,15 +56788,15 @@ var createSimplify = /* @__PURE__ */ factory(name279, dependencies279, (_ref) =>
       newRule.l = ruleObject.l;
       newRule.r = ruleObject.r;
     }
-    newRule.l = removeParens(parse9(newRule.l));
-    newRule.r = removeParens(parse9(newRule.r));
+    newRule.l = removeParens(parse8(newRule.l));
+    newRule.r = removeParens(parse8(newRule.r));
     for (var prop2 of ["imposeContext", "repeat", "assuming"]) {
       if (prop2 in ruleObject) {
         newRule[prop2] = ruleObject[prop2];
       }
     }
     if (ruleObject.evaluate) {
-      newRule.evaluate = parse9(ruleObject.evaluate);
+      newRule.evaluate = parse8(ruleObject.evaluate);
     }
     if (isAssociative(newRule.l, context)) {
       var nonCommutative = !isCommutative(newRule.l, context);
@@ -56890,7 +56831,6 @@ var createSimplify = /* @__PURE__ */ factory(name279, dependencies279, (_ref) =>
           rule = {
             s: rule
           };
-        /* falls through */
         case "object":
           newRule = _canonicalizeRule(rule, context);
           break;
@@ -57593,7 +57533,6 @@ var createSimplifyConstant = /* @__PURE__ */ factory(name280, dependencies280, (
           } else {
           }
         }
-      /* falls through */
       case "OperatorNode": {
         var fn = node.fn.toString();
         var _args;
@@ -57657,15 +57596,10 @@ var createSimplifyConstant = /* @__PURE__ */ factory(name280, dependencies280, (
         return new ObjectNode(foldProps);
       }
       case "AssignmentNode":
-      /* falls through */
       case "BlockNode":
-      /* falls through */
       case "FunctionAssignmentNode":
-      /* falls through */
       case "RangeNode":
-      /* falls through */
       case "ConditionalNode":
-      /* falls through */
       default:
         throw new Error("Unimplemented node type in simplifyConstant: ".concat(node.type));
     }
@@ -57679,7 +57613,7 @@ var dependencies281 = ["typed", "parse", "equal", "isZero", "add", "subtract", "
 var createSimplifyCore = /* @__PURE__ */ factory(name281, dependencies281, (_ref) => {
   var {
     typed: typed3,
-    parse: parse9,
+    parse: parse8,
     equal,
     isZero: isZero2,
     add: add5,
@@ -57910,7 +57844,7 @@ var dependencies282 = ["typed", "parse", "ConstantNode", "FunctionNode", "Operat
 var createResolve = /* @__PURE__ */ factory(name282, dependencies282, (_ref) => {
   var {
     typed: typed3,
-    parse: parse9,
+    parse: parse8,
     ConstantNode,
     FunctionNode,
     OperatorNode,
@@ -57932,7 +57866,7 @@ var createResolve = /* @__PURE__ */ factory(name282, dependencies282, (_ref) => 
         nextWithin.add(node.name);
         return _resolve(value, scope, nextWithin);
       } else if (typeof value === "number") {
-        return parse9(String(value));
+        return parse8(String(value));
       } else if (value !== void 0) {
         return new ConstantNode(value);
       } else {
@@ -57973,7 +57907,7 @@ var name283 = "symbolicEqual";
 var dependencies283 = ["parse", "simplify", "typed", "OperatorNode"];
 var createSymbolicEqual = /* @__PURE__ */ factory(name283, dependencies283, (_ref) => {
   var {
-    parse: parse9,
+    parse: parse8,
     simplify,
     typed: typed3,
     OperatorNode
@@ -57997,7 +57931,7 @@ var createDerivative = /* @__PURE__ */ factory(name284, dependencies284, (_ref) 
   var {
     typed: typed3,
     config: config4,
-    parse: parse9,
+    parse: parse8,
     simplify,
     equal,
     isZero: isZero2,
@@ -58020,7 +57954,7 @@ var createDerivative = /* @__PURE__ */ factory(name284, dependencies284, (_ref) 
   typed3.addConversion({
     from: "identifier",
     to: "SymbolNode",
-    convert: parse9
+    convert: parse8
   });
   var derivative = typed3(name284, {
     "Node, SymbolNode": plainDerivative,
@@ -58040,7 +57974,7 @@ var createDerivative = /* @__PURE__ */ factory(name284, dependencies284, (_ref) 
   typed3.removeConversion({
     from: "identifier",
     to: "SymbolNode",
-    convert: parse9
+    convert: parse8
   });
   derivative._simplify = true;
   derivative.toTex = function(deriv) {
@@ -58049,14 +57983,14 @@ var createDerivative = /* @__PURE__ */ factory(name284, dependencies284, (_ref) 
   var _derivTex = typed3("_derivTex", {
     "Node, SymbolNode": function NodeSymbolNode(expr, x) {
       if (isConstantNode(expr) && typeOf(expr.value) === "string") {
-        return _derivTex(parse9(expr.value).toString(), x.toString(), 1);
+        return _derivTex(parse8(expr.value).toString(), x.toString(), 1);
       } else {
         return _derivTex(expr.toTex(), x.toString(), 1);
       }
     },
     "Node, ConstantNode": function NodeConstantNode(expr, x) {
       if (typeOf(x.value) === "string") {
-        return _derivTex(expr, parse9(x.value));
+        return _derivTex(expr, parse8(x.value));
       } else {
         throw new Error("The second parameter to 'derivative' is a non-string constant");
       }
@@ -58156,7 +58090,6 @@ var createDerivative = /* @__PURE__ */ factory(name284, dependencies284, (_ref) 
           break;
         case "log10":
           arg1 = createConstantNode2(10);
-        /* fall through! */
         case "log":
           if (!arg1 && node.args.length === 1) {
             funcDerivative = arg0.clone();
@@ -58276,7 +58209,6 @@ var createDerivative = /* @__PURE__ */ factory(name284, dependencies284, (_ref) 
           funcDerivative = new OperatorNode("/", "divide", [new FunctionNode(new SymbolNode("abs"), [arg0.clone()]), arg0.clone()]);
           break;
         case "gamma":
-        // Needs digamma function, d/dx(gamma(x)) = gamma(x)digamma(x)
         default:
           throw new Error('Cannot process function "' + node.name + '" in derivative: the function is not supported, undefined, or the number of arguments passed to it are not supported');
       }
@@ -58386,7 +58318,7 @@ var createRationalize = /* @__PURE__ */ factory(name285, dependencies285, (_ref)
     multiply: multiply3,
     divide: divide4,
     pow: pow2,
-    parse: parse9,
+    parse: parse8,
     simplifyConstant,
     simplifyCore,
     simplify,
@@ -61424,7 +61356,7 @@ var fxmManager = class extends JSONRPCRouter {
         rep.body = JSON.stringify({
           status: "ok",
           sources: Object.keys(this.fxms),
-          version: `fxrate@${"de3526c"} ${"2024-11-19T10:56:18+08:00"}`,
+          version: `fxrate@${"65e7f95"} ${"2024-10-30T00:07:57+08:00"}`,
           apiVersion: "v1",
           environment: import_node_process.default.env.NODE_ENV || "development"
         });
@@ -62020,10 +61952,7 @@ function AxiosError(message, code, config4, request3, response3) {
   code && (this.code = code);
   config4 && (this.config = config4);
   request3 && (this.request = request3);
-  if (response3) {
-    this.response = response3;
-    this.status = response3.status ? response3.status : null;
-  }
+  response3 && (this.response = response3);
 }
 utils_default.inherits(AxiosError, Error, {
   toJSON: function toJSON() {
@@ -62042,7 +61971,7 @@ utils_default.inherits(AxiosError, Error, {
       // Axios
       config: utils_default.toJSONObject(this.config),
       code: this.code,
-      status: this.status
+      status: this.response && this.response.status ? this.response.status : null
     };
   }
 });
@@ -62349,12 +62278,12 @@ __export(utils_exports, {
   hasBrowserEnv: () => hasBrowserEnv,
   hasStandardBrowserEnv: () => hasStandardBrowserEnv,
   hasStandardBrowserWebWorkerEnv: () => hasStandardBrowserWebWorkerEnv,
-  navigator: () => _navigator,
   origin: () => origin
 });
 var hasBrowserEnv = typeof window !== "undefined" && typeof document !== "undefined";
-var _navigator = typeof navigator === "object" && navigator || void 0;
-var hasStandardBrowserEnv = hasBrowserEnv && (!_navigator || ["ReactNative", "NativeScript", "NS"].indexOf(_navigator.product) < 0);
+var hasStandardBrowserEnv = ((product3) => {
+  return hasBrowserEnv && ["ReactNative", "NativeScript", "NS"].indexOf(product3) < 0;
+})(typeof navigator !== "undefined" && navigator.product);
 var hasStandardBrowserWebWorkerEnv = (() => {
   return typeof WorkerGlobalScope !== "undefined" && // eslint-disable-next-line no-undef
   self instanceof WorkerGlobalScope && typeof self.importScripts === "function";
@@ -62879,7 +62808,7 @@ var import_follow_redirects = __toESM(require_follow_redirects(), 1);
 var import_zlib = __toESM(require("zlib"), 1);
 
 // node_modules/axios/lib/env/data.js
-var VERSION = "1.7.7";
+var VERSION = "1.7.4";
 
 // node_modules/axios/lib/helpers/parseProtocol.js
 function parseProtocol(url2) {
@@ -63417,7 +63346,7 @@ var http_default = isHttpAdapterSupported && function httpAdapter(config4) {
       }
     }
     const fullPath = buildFullPath(config4.baseURL, config4.url);
-    const parsed = new URL(fullPath, platform_default.hasBrowserEnv ? platform_default.origin : void 0);
+    const parsed = new URL(fullPath, utils_default.hasBrowserEnv ? platform_default.origin : void 0);
     const protocol = parsed.protocol || supportedProtocols[0];
     if (protocol === "data:") {
       let convertedData;
@@ -63576,7 +63505,7 @@ var http_default = isHttpAdapterSupported && function httpAdapter(config4) {
     if (config4.socketPath) {
       options.socketPath = config4.socketPath;
     } else {
-      options.hostname = parsed.hostname.startsWith("[") ? parsed.hostname.slice(1, -1) : parsed.hostname;
+      options.hostname = parsed.hostname;
       options.port = parsed.port;
       setProxy(options, config4.proxy, protocol + "//" + parsed.hostname + (parsed.port ? ":" + parsed.port : "") + options.path);
     }
@@ -63628,7 +63557,6 @@ var http_default = isHttpAdapterSupported && function httpAdapter(config4) {
           delete res.headers["content-encoding"];
         }
         switch ((res.headers["content-encoding"] || "").toLowerCase()) {
-          /*eslint default-case:0*/
           case "gzip":
           case "x-gzip":
           case "compress":
@@ -63784,7 +63712,7 @@ var isURLSameOrigin_default = platform_default.hasStandardBrowserEnv ? (
   // Standard browser envs have full support of the APIs needed to test
   // whether the request URL is of the same origin as current location.
   function standardBrowserEnv() {
-    const msie = platform_default.navigator && /(msie|trident)/i.test(platform_default.navigator.userAgent);
+    const msie = /(msie|trident)/i.test(navigator.userAgent);
     const urlParsingNode = document.createElement("a");
     let originURL;
     function resolveURL(url2) {
@@ -64095,37 +64023,36 @@ var xhr_default = isXHRAdapterSupported && function(config4) {
 
 // node_modules/axios/lib/helpers/composeSignals.js
 var composeSignals = (signals, timeout) => {
-  const { length } = signals = signals ? signals.filter(Boolean) : [];
-  if (timeout || length) {
-    let controller = new AbortController();
-    let aborted;
-    const onabort = function(reason) {
-      if (!aborted) {
-        aborted = true;
-        unsubscribe();
-        const err = reason instanceof Error ? reason : this.reason;
-        controller.abort(err instanceof AxiosError_default ? err : new CanceledError_default(err instanceof Error ? err.message : err));
-      }
-    };
-    let timer = timeout && setTimeout(() => {
+  let controller = new AbortController();
+  let aborted;
+  const onabort = function(cancel) {
+    if (!aborted) {
+      aborted = true;
+      unsubscribe();
+      const err = cancel instanceof Error ? cancel : this.reason;
+      controller.abort(err instanceof AxiosError_default ? err : new CanceledError_default(err instanceof Error ? err.message : err));
+    }
+  };
+  let timer = timeout && setTimeout(() => {
+    onabort(new AxiosError_default(`timeout ${timeout} of ms exceeded`, AxiosError_default.ETIMEDOUT));
+  }, timeout);
+  const unsubscribe = () => {
+    if (signals) {
+      timer && clearTimeout(timer);
       timer = null;
-      onabort(new AxiosError_default(`timeout ${timeout} of ms exceeded`, AxiosError_default.ETIMEDOUT));
-    }, timeout);
-    const unsubscribe = () => {
-      if (signals) {
-        timer && clearTimeout(timer);
-        timer = null;
-        signals.forEach((signal2) => {
-          signal2.unsubscribe ? signal2.unsubscribe(onabort) : signal2.removeEventListener("abort", onabort);
-        });
-        signals = null;
-      }
-    };
-    signals.forEach((signal2) => signal2.addEventListener("abort", onabort));
-    const { signal } = controller;
-    signal.unsubscribe = () => utils_default.asap(unsubscribe);
-    return signal;
-  }
+      signals.forEach((signal2) => {
+        signal2 && (signal2.removeEventListener ? signal2.removeEventListener("abort", onabort) : signal2.unsubscribe(onabort));
+      });
+      signals = null;
+    }
+  };
+  signals.forEach((signal2) => signal2 && signal2.addEventListener && signal2.addEventListener("abort", onabort));
+  const { signal } = controller;
+  signal.unsubscribe = unsubscribe;
+  return [signal, () => {
+    timer && clearTimeout(timer);
+    timer = null;
+  }];
 };
 var composeSignals_default = composeSignals;
 
@@ -64144,31 +64071,13 @@ var streamChunk = function* (chunk, chunkSize) {
     pos = end2;
   }
 };
-var readBytes = async function* (iterable, chunkSize) {
-  for await (const chunk of readStream(iterable)) {
-    yield* streamChunk(chunk, chunkSize);
+var readBytes = async function* (iterable, chunkSize, encode3) {
+  for await (const chunk of iterable) {
+    yield* streamChunk(ArrayBuffer.isView(chunk) ? chunk : await encode3(String(chunk)), chunkSize);
   }
 };
-var readStream = async function* (stream4) {
-  if (stream4[Symbol.asyncIterator]) {
-    yield* stream4;
-    return;
-  }
-  const reader = stream4.getReader();
-  try {
-    for (; ; ) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
-      }
-      yield value;
-    }
-  } finally {
-    await reader.cancel();
-  }
-};
-var trackStream = (stream4, chunkSize, onProgress, onFinish) => {
-  const iterator = readBytes(stream4, chunkSize);
+var trackStream = (stream4, chunkSize, onProgress, onFinish, encode3) => {
+  const iterator = readBytes(stream4, chunkSize, encode3);
   let bytes = 0;
   let done;
   let _onFinish = (e2) => {
@@ -64249,11 +64158,7 @@ var getBodyLength = async (body) => {
     return body.size;
   }
   if (utils_default.isSpecCompliantForm(body)) {
-    const _request = new Request(platform_default.origin, {
-      method: "POST",
-      body
-    });
-    return (await _request.arrayBuffer()).byteLength;
+    return (await new Request(body).arrayBuffer()).byteLength;
   }
   if (utils_default.isArrayBufferView(body) || utils_default.isArrayBuffer(body)) {
     return body.byteLength;
@@ -64285,11 +64190,14 @@ var fetch_default = isFetchSupported && (async (config4) => {
     fetchOptions
   } = resolveConfig_default(config4);
   responseType = responseType ? (responseType + "").toLowerCase() : "text";
-  let composedSignal = composeSignals_default([signal, cancelToken && cancelToken.toAbortSignal()], timeout);
-  let request3;
-  const unsubscribe = composedSignal && composedSignal.unsubscribe && (() => {
-    composedSignal.unsubscribe();
-  });
+  let [composedSignal, stopTimeout] = signal || cancelToken || timeout ? composeSignals_default([signal, cancelToken], timeout) : [];
+  let finished, request3;
+  const onFinish = () => {
+    !finished && setTimeout(() => {
+      composedSignal && composedSignal.unsubscribe();
+    });
+    finished = true;
+  };
   let requestContentLength;
   try {
     if (onUploadProgress && supportsRequestStream && method !== "get" && method !== "head" && (requestContentLength = await resolveBodyLength(headers3, data2)) !== 0) {
@@ -64307,13 +64215,12 @@ var fetch_default = isFetchSupported && (async (config4) => {
           requestContentLength,
           progressEventReducer(asyncDecorator(onUploadProgress))
         );
-        data2 = trackStream(_request.body, DEFAULT_CHUNK_SIZE, onProgress, flush);
+        data2 = trackStream(_request.body, DEFAULT_CHUNK_SIZE, onProgress, flush, encodeText);
       }
     }
     if (!utils_default.isString(withCredentials)) {
       withCredentials = withCredentials ? "include" : "omit";
     }
-    const isCredentialsSupported = "credentials" in Request.prototype;
     request3 = new Request(url2, {
       ...fetchOptions,
       signal: composedSignal,
@@ -64321,11 +64228,11 @@ var fetch_default = isFetchSupported && (async (config4) => {
       headers: headers3.normalize().toJSON(),
       body: data2,
       duplex: "half",
-      credentials: isCredentialsSupported ? withCredentials : void 0
+      credentials: withCredentials
     });
     let response3 = await fetch(request3);
     const isStreamResponse = supportsResponseStream && (responseType === "stream" || responseType === "response");
-    if (supportsResponseStream && (onDownloadProgress || isStreamResponse && unsubscribe)) {
+    if (supportsResponseStream && (onDownloadProgress || isStreamResponse)) {
       const options = {};
       ["status", "statusText", "headers"].forEach((prop2) => {
         options[prop2] = response3[prop2];
@@ -64338,14 +64245,15 @@ var fetch_default = isFetchSupported && (async (config4) => {
       response3 = new Response(
         trackStream(response3.body, DEFAULT_CHUNK_SIZE, onProgress, () => {
           flush && flush();
-          unsubscribe && unsubscribe();
-        }),
+          isStreamResponse && onFinish();
+        }, encodeText),
         options
       );
     }
     responseType = responseType || "text";
     let responseData = await resolvers[utils_default.findKey(resolvers, responseType) || "text"](response3, config4);
-    !isStreamResponse && unsubscribe && unsubscribe();
+    !isStreamResponse && onFinish();
+    stopTimeout && stopTimeout();
     return await new Promise((resolve, reject) => {
       settle(resolve, reject, {
         data: responseData,
@@ -64357,7 +64265,7 @@ var fetch_default = isFetchSupported && (async (config4) => {
       });
     });
   } catch (err) {
-    unsubscribe && unsubscribe();
+    onFinish();
     if (err && err.name === "TypeError" && /fetch/i.test(err.message)) {
       throw Object.assign(
         new AxiosError_default("Network Error", AxiosError_default.ERR_NETWORK, config4, request3),
@@ -64761,15 +64669,6 @@ var CancelToken = class _CancelToken {
     if (index2 !== -1) {
       this._listeners.splice(index2, 1);
     }
-  }
-  toAbortSignal() {
-    const controller = new AbortController();
-    const abort = (err) => {
-      controller.abort(err);
-    };
-    this.subscribe(abort);
-    controller.signal.unsubscribe = () => this.unsubscribe(abort);
-    return controller.signal;
   }
   /**
    * Returns an object that contains a new `CancelToken` and a function that, when called,
@@ -65781,7 +65680,6 @@ var EntityDecoder = class {
       case EntityDecoderState.NamedEntity: {
         return this.result !== 0 && (this.decodeMode !== DecodingMode.Attribute || this.result === this.treeIndex) ? this.emitNotTerminatedNamedEntity() : 0;
       }
-      // Otherwise, emit a numeric entity if we have one.
       case EntityDecoderState.NumericDecimal: {
         return this.emitNumericEntity(0, 2);
       }
@@ -66105,7 +66003,6 @@ function renderNode(node, options) {
   switch (node.type) {
     case Root:
       return render(node.children, options);
-    // @ts-expect-error We don't use `Doctype` yet
     case Doctype:
     case Directive:
       return renderDirective(node);
@@ -67504,7 +67401,7 @@ var import_css_what2 = __toESM(require_commonjs(), 1);
 var whitespace = /* @__PURE__ */ new Set([9, 10, 12, 13, 32]);
 var ZERO = "0".charCodeAt(0);
 var NINE = "9".charCodeAt(0);
-function parse2(formula) {
+function parse(formula) {
   formula = formula.trim().toLowerCase();
   if (formula === "even") {
     return [2, 0];
@@ -67577,7 +67474,7 @@ function compile(parsed) {
 
 // node_modules/nth-check/lib/esm/index.js
 function nthCheck(formula) {
-  return compile(parse2(formula));
+  return compile(parse(formula));
 }
 
 // node_modules/css-select/lib/esm/pseudo-selectors/filters.js
@@ -67949,7 +67846,6 @@ function compileGeneralSelector(next2, selector, options, context, compileToken2
     case import_css_what3.SelectorType.Pseudo: {
       return compilePseudoSelector(next2, selector, options, context, compileToken2);
     }
-    // Tags
     case import_css_what3.SelectorType.Tag: {
       if (selector.namespace != null) {
         throw new Error("Namespaced tag names are not yet supported by css-select");
@@ -67962,7 +67858,6 @@ function compileGeneralSelector(next2, selector, options, context, compileToken2
         return adapter2.getName(elem) === name314 && next2(elem);
       };
     }
-    // Traversal
     case import_css_what3.SelectorType.Descendant: {
       if (options.cacheResults === false || typeof WeakSet === "undefined") {
         return function descendant(elem) {
@@ -68699,7 +68594,7 @@ __export(manipulation_exports, {
 
 // node_modules/cheerio/lib/esm/parse.js
 function getParse(parser3) {
-  return function parse9(content, options, isDocument2, context) {
+  return function parse8(content, options, isDocument2, context) {
     if (typeof Buffer !== "undefined" && Buffer.isBuffer(content)) {
       content = content.toString();
     }
@@ -69079,7 +68974,7 @@ function setCss(el, prop2, value, idx) {
 function getCss(el, prop2) {
   if (!el || !isTag2(el))
     return;
-  const styles = parse6(el.attribs["style"]);
+  const styles = parse5(el.attribs["style"]);
   if (typeof prop2 === "string") {
     return styles[prop2];
   }
@@ -69097,7 +68992,7 @@ function getCss(el, prop2) {
 function stringify2(obj) {
   return Object.keys(obj).reduce((str, prop2) => `${str}${str ? " " : ""}${prop2}: ${obj[prop2]};`, "");
 }
-function parse6(styles) {
+function parse5(styles) {
   styles = (styles || "").trim();
   if (!styles)
     return {};
@@ -69190,13 +69085,13 @@ Cheerio.prototype[Symbol.iterator] = Array.prototype[Symbol.iterator];
 Object.assign(Cheerio.prototype, attributes_exports, traversing_exports, manipulation_exports, css_exports, forms_exports);
 
 // node_modules/cheerio/lib/esm/load.js
-function getLoad(parse9, render3) {
+function getLoad(parse8, render3) {
   return function load2(content, options, isDocument2 = true) {
     if (content == null) {
       throw new Error("cheerio.load() expects a string");
     }
     const internalOpts = { ...options_default, ...flatten2(options) };
-    const initialRoot = parse9(content, internalOpts, isDocument2, null);
+    const initialRoot = parse8(content, internalOpts, isDocument2, null);
     class LoadedCheerio extends Cheerio {
       _make(selector, context) {
         const cheerio = initialize(selector, context);
@@ -69204,7 +69099,7 @@ function getLoad(parse9, render3) {
         return cheerio;
       }
       _parse(content2, options2, isDocument3, context) {
-        return parse9(content2, options2, isDocument3, context);
+        return parse8(content2, options2, isDocument3, context);
       }
       _render(dom) {
         return render3(dom, this.options);
@@ -69217,7 +69112,7 @@ function getLoad(parse9, render3) {
         ...internalOpts,
         ...flatten2(opts)
       };
-      const r = typeof root3 === "string" ? [parse9(root3, options2, false, null)] : "length" in root3 ? root3 : [root3];
+      const r = typeof root3 === "string" ? [parse8(root3, options2, false, null)] : "length" in root3 ? root3 : [root3];
       const rootInstance = isCheerio(r) ? r : new LoadedCheerio(r, null, options2);
       rootInstance._root = rootInstance;
       if (!selector) {
@@ -69225,7 +69120,7 @@ function getLoad(parse9, render3) {
       }
       const elements = typeof selector === "string" && isHtml(selector) ? (
         // $(<html>)
-        parse9(selector, options2, false, null).children
+        parse8(selector, options2, false, null).children
       ) : isNode2(selector) ? (
         // $(dom)
         [selector]
@@ -69246,7 +69141,7 @@ function getLoad(parse9, render3) {
         rootInstance
       ) : typeof context === "string" ? isHtml(context) ? (
         // $('li', '<ul>...</ul>')
-        new LoadedCheerio([parse9(context, options2, false, null)], rootInstance, options2)
+        new LoadedCheerio([parse8(context, options2, false, null)], rootInstance, options2)
       ) : (
         // $('li', 'ul')
         (search = `${context} ${search}`, rootInstance)
@@ -69327,6 +69222,7 @@ var CODE_POINTS;
   CODE_POINTS2[CODE_POINTS2["SPACE"] = 32] = "SPACE";
   CODE_POINTS2[CODE_POINTS2["EXCLAMATION_MARK"] = 33] = "EXCLAMATION_MARK";
   CODE_POINTS2[CODE_POINTS2["QUOTATION_MARK"] = 34] = "QUOTATION_MARK";
+  CODE_POINTS2[CODE_POINTS2["NUMBER_SIGN"] = 35] = "NUMBER_SIGN";
   CODE_POINTS2[CODE_POINTS2["AMPERSAND"] = 38] = "AMPERSAND";
   CODE_POINTS2[CODE_POINTS2["APOSTROPHE"] = 39] = "APOSTROPHE";
   CODE_POINTS2[CODE_POINTS2["HYPHEN_MINUS"] = 45] = "HYPHEN_MINUS";
@@ -69339,12 +69235,17 @@ var CODE_POINTS;
   CODE_POINTS2[CODE_POINTS2["GREATER_THAN_SIGN"] = 62] = "GREATER_THAN_SIGN";
   CODE_POINTS2[CODE_POINTS2["QUESTION_MARK"] = 63] = "QUESTION_MARK";
   CODE_POINTS2[CODE_POINTS2["LATIN_CAPITAL_A"] = 65] = "LATIN_CAPITAL_A";
+  CODE_POINTS2[CODE_POINTS2["LATIN_CAPITAL_F"] = 70] = "LATIN_CAPITAL_F";
+  CODE_POINTS2[CODE_POINTS2["LATIN_CAPITAL_X"] = 88] = "LATIN_CAPITAL_X";
   CODE_POINTS2[CODE_POINTS2["LATIN_CAPITAL_Z"] = 90] = "LATIN_CAPITAL_Z";
   CODE_POINTS2[CODE_POINTS2["RIGHT_SQUARE_BRACKET"] = 93] = "RIGHT_SQUARE_BRACKET";
   CODE_POINTS2[CODE_POINTS2["GRAVE_ACCENT"] = 96] = "GRAVE_ACCENT";
   CODE_POINTS2[CODE_POINTS2["LATIN_SMALL_A"] = 97] = "LATIN_SMALL_A";
+  CODE_POINTS2[CODE_POINTS2["LATIN_SMALL_F"] = 102] = "LATIN_SMALL_F";
+  CODE_POINTS2[CODE_POINTS2["LATIN_SMALL_X"] = 120] = "LATIN_SMALL_X";
   CODE_POINTS2[CODE_POINTS2["LATIN_SMALL_Z"] = 122] = "LATIN_SMALL_Z";
-})(CODE_POINTS || (CODE_POINTS = {}));
+  CODE_POINTS2[CODE_POINTS2["REPLACEMENT_CHARACTER"] = 65533] = "REPLACEMENT_CHARACTER";
+})(CODE_POINTS = CODE_POINTS || (CODE_POINTS = {}));
 var SEQUENCES = {
   DASH_DASH: "--",
   CDATA_START: "[CDATA[",
@@ -69432,7 +69333,7 @@ var ERR;
   ERR2["misplacedStartTagForHeadElement"] = "misplaced-start-tag-for-head-element";
   ERR2["nestedNoscriptInHead"] = "nested-noscript-in-head";
   ERR2["eofInElementThatCanContainOnlyText"] = "eof-in-element-that-can-contain-only-text";
-})(ERR || (ERR = {}));
+})(ERR = ERR || (ERR = {}));
 
 // node_modules/parse5/dist/tokenizer/preprocessor.js
 var DEFAULT_BUFFER_WATERLINE = 1 << 16;
@@ -69460,24 +69361,22 @@ var Preprocessor = class {
   get offset() {
     return this.droppedBufferSize + this.pos;
   }
-  getError(code, cpOffset) {
+  getError(code) {
     const { line, col, offset } = this;
-    const startCol = col + cpOffset;
-    const startOffset = offset + cpOffset;
     return {
       code,
       startLine: line,
       endLine: line,
-      startCol,
-      endCol: startCol,
-      startOffset,
-      endOffset: startOffset
+      startCol: col,
+      endCol: col,
+      startOffset: offset,
+      endOffset: offset
     };
   }
   _err(code) {
     if (this.handler.onParseError && this.lastErrOffset !== this.offset) {
       this.lastErrOffset = this.offset;
-      this.handler.onParseError(this.getError(code, 0));
+      this.handler.onParseError(this.getError(code));
     }
   }
   _addGap() {
@@ -69615,7 +69514,7 @@ var TokenType;
   TokenType2[TokenType2["DOCTYPE"] = 6] = "DOCTYPE";
   TokenType2[TokenType2["EOF"] = 7] = "EOF";
   TokenType2[TokenType2["HIBERNATION"] = 8] = "HIBERNATION";
-})(TokenType || (TokenType = {}));
+})(TokenType = TokenType || (TokenType = {}));
 function getTokenAttr(token, attrName) {
   for (let i = token.attrs.length - 1; i >= 0; i--) {
     if (token.attrs[i].name === attrName) {
@@ -69631,12 +69530,12 @@ __export(html_exports, {
   ATTRS: () => ATTRS,
   DOCUMENT_MODE: () => DOCUMENT_MODE,
   NS: () => NS,
-  NUMBERED_HEADERS: () => NUMBERED_HEADERS,
   SPECIAL_ELEMENTS: () => SPECIAL_ELEMENTS,
   TAG_ID: () => TAG_ID,
   TAG_NAMES: () => TAG_NAMES,
   getTagID: () => getTagID,
-  hasUnescapedText: () => hasUnescapedText
+  hasUnescapedText: () => hasUnescapedText,
+  isNumberedHeader: () => isNumberedHeader
 });
 var NS;
 (function(NS2) {
@@ -69646,7 +69545,7 @@ var NS;
   NS2["XLINK"] = "http://www.w3.org/1999/xlink";
   NS2["XML"] = "http://www.w3.org/XML/1998/namespace";
   NS2["XMLNS"] = "http://www.w3.org/2000/xmlns/";
-})(NS || (NS = {}));
+})(NS = NS || (NS = {}));
 var ATTRS;
 (function(ATTRS2) {
   ATTRS2["TYPE"] = "type";
@@ -69657,13 +69556,13 @@ var ATTRS;
   ATTRS2["COLOR"] = "color";
   ATTRS2["FACE"] = "face";
   ATTRS2["SIZE"] = "size";
-})(ATTRS || (ATTRS = {}));
+})(ATTRS = ATTRS || (ATTRS = {}));
 var DOCUMENT_MODE;
 (function(DOCUMENT_MODE2) {
   DOCUMENT_MODE2["NO_QUIRKS"] = "no-quirks";
   DOCUMENT_MODE2["QUIRKS"] = "quirks";
   DOCUMENT_MODE2["LIMITED_QUIRKS"] = "limited-quirks";
-})(DOCUMENT_MODE || (DOCUMENT_MODE = {}));
+})(DOCUMENT_MODE = DOCUMENT_MODE || (DOCUMENT_MODE = {}));
 var TAG_NAMES;
 (function(TAG_NAMES2) {
   TAG_NAMES2["A"] = "a";
@@ -69759,7 +69658,6 @@ var TAG_NAMES;
   TAG_NAMES2["RUBY"] = "ruby";
   TAG_NAMES2["S"] = "s";
   TAG_NAMES2["SCRIPT"] = "script";
-  TAG_NAMES2["SEARCH"] = "search";
   TAG_NAMES2["SECTION"] = "section";
   TAG_NAMES2["SELECT"] = "select";
   TAG_NAMES2["SOURCE"] = "source";
@@ -69789,7 +69687,7 @@ var TAG_NAMES;
   TAG_NAMES2["VAR"] = "var";
   TAG_NAMES2["WBR"] = "wbr";
   TAG_NAMES2["XMP"] = "xmp";
-})(TAG_NAMES || (TAG_NAMES = {}));
+})(TAG_NAMES = TAG_NAMES || (TAG_NAMES = {}));
 var TAG_ID;
 (function(TAG_ID2) {
   TAG_ID2[TAG_ID2["UNKNOWN"] = 0] = "UNKNOWN";
@@ -69886,37 +69784,36 @@ var TAG_ID;
   TAG_ID2[TAG_ID2["RUBY"] = 91] = "RUBY";
   TAG_ID2[TAG_ID2["S"] = 92] = "S";
   TAG_ID2[TAG_ID2["SCRIPT"] = 93] = "SCRIPT";
-  TAG_ID2[TAG_ID2["SEARCH"] = 94] = "SEARCH";
-  TAG_ID2[TAG_ID2["SECTION"] = 95] = "SECTION";
-  TAG_ID2[TAG_ID2["SELECT"] = 96] = "SELECT";
-  TAG_ID2[TAG_ID2["SOURCE"] = 97] = "SOURCE";
-  TAG_ID2[TAG_ID2["SMALL"] = 98] = "SMALL";
-  TAG_ID2[TAG_ID2["SPAN"] = 99] = "SPAN";
-  TAG_ID2[TAG_ID2["STRIKE"] = 100] = "STRIKE";
-  TAG_ID2[TAG_ID2["STRONG"] = 101] = "STRONG";
-  TAG_ID2[TAG_ID2["STYLE"] = 102] = "STYLE";
-  TAG_ID2[TAG_ID2["SUB"] = 103] = "SUB";
-  TAG_ID2[TAG_ID2["SUMMARY"] = 104] = "SUMMARY";
-  TAG_ID2[TAG_ID2["SUP"] = 105] = "SUP";
-  TAG_ID2[TAG_ID2["TABLE"] = 106] = "TABLE";
-  TAG_ID2[TAG_ID2["TBODY"] = 107] = "TBODY";
-  TAG_ID2[TAG_ID2["TEMPLATE"] = 108] = "TEMPLATE";
-  TAG_ID2[TAG_ID2["TEXTAREA"] = 109] = "TEXTAREA";
-  TAG_ID2[TAG_ID2["TFOOT"] = 110] = "TFOOT";
-  TAG_ID2[TAG_ID2["TD"] = 111] = "TD";
-  TAG_ID2[TAG_ID2["TH"] = 112] = "TH";
-  TAG_ID2[TAG_ID2["THEAD"] = 113] = "THEAD";
-  TAG_ID2[TAG_ID2["TITLE"] = 114] = "TITLE";
-  TAG_ID2[TAG_ID2["TR"] = 115] = "TR";
-  TAG_ID2[TAG_ID2["TRACK"] = 116] = "TRACK";
-  TAG_ID2[TAG_ID2["TT"] = 117] = "TT";
-  TAG_ID2[TAG_ID2["U"] = 118] = "U";
-  TAG_ID2[TAG_ID2["UL"] = 119] = "UL";
-  TAG_ID2[TAG_ID2["SVG"] = 120] = "SVG";
-  TAG_ID2[TAG_ID2["VAR"] = 121] = "VAR";
-  TAG_ID2[TAG_ID2["WBR"] = 122] = "WBR";
-  TAG_ID2[TAG_ID2["XMP"] = 123] = "XMP";
-})(TAG_ID || (TAG_ID = {}));
+  TAG_ID2[TAG_ID2["SECTION"] = 94] = "SECTION";
+  TAG_ID2[TAG_ID2["SELECT"] = 95] = "SELECT";
+  TAG_ID2[TAG_ID2["SOURCE"] = 96] = "SOURCE";
+  TAG_ID2[TAG_ID2["SMALL"] = 97] = "SMALL";
+  TAG_ID2[TAG_ID2["SPAN"] = 98] = "SPAN";
+  TAG_ID2[TAG_ID2["STRIKE"] = 99] = "STRIKE";
+  TAG_ID2[TAG_ID2["STRONG"] = 100] = "STRONG";
+  TAG_ID2[TAG_ID2["STYLE"] = 101] = "STYLE";
+  TAG_ID2[TAG_ID2["SUB"] = 102] = "SUB";
+  TAG_ID2[TAG_ID2["SUMMARY"] = 103] = "SUMMARY";
+  TAG_ID2[TAG_ID2["SUP"] = 104] = "SUP";
+  TAG_ID2[TAG_ID2["TABLE"] = 105] = "TABLE";
+  TAG_ID2[TAG_ID2["TBODY"] = 106] = "TBODY";
+  TAG_ID2[TAG_ID2["TEMPLATE"] = 107] = "TEMPLATE";
+  TAG_ID2[TAG_ID2["TEXTAREA"] = 108] = "TEXTAREA";
+  TAG_ID2[TAG_ID2["TFOOT"] = 109] = "TFOOT";
+  TAG_ID2[TAG_ID2["TD"] = 110] = "TD";
+  TAG_ID2[TAG_ID2["TH"] = 111] = "TH";
+  TAG_ID2[TAG_ID2["THEAD"] = 112] = "THEAD";
+  TAG_ID2[TAG_ID2["TITLE"] = 113] = "TITLE";
+  TAG_ID2[TAG_ID2["TR"] = 114] = "TR";
+  TAG_ID2[TAG_ID2["TRACK"] = 115] = "TRACK";
+  TAG_ID2[TAG_ID2["TT"] = 116] = "TT";
+  TAG_ID2[TAG_ID2["U"] = 117] = "U";
+  TAG_ID2[TAG_ID2["UL"] = 118] = "UL";
+  TAG_ID2[TAG_ID2["SVG"] = 119] = "SVG";
+  TAG_ID2[TAG_ID2["VAR"] = 120] = "VAR";
+  TAG_ID2[TAG_ID2["WBR"] = 121] = "WBR";
+  TAG_ID2[TAG_ID2["XMP"] = 122] = "XMP";
+})(TAG_ID = TAG_ID || (TAG_ID = {}));
 var TAG_NAME_TO_ID = /* @__PURE__ */ new Map([
   [TAG_NAMES.A, TAG_ID.A],
   [TAG_NAMES.ADDRESS, TAG_ID.ADDRESS],
@@ -70011,7 +69908,6 @@ var TAG_NAME_TO_ID = /* @__PURE__ */ new Map([
   [TAG_NAMES.RUBY, TAG_ID.RUBY],
   [TAG_NAMES.S, TAG_ID.S],
   [TAG_NAMES.SCRIPT, TAG_ID.SCRIPT],
-  [TAG_NAMES.SEARCH, TAG_ID.SEARCH],
   [TAG_NAMES.SECTION, TAG_ID.SECTION],
   [TAG_NAMES.SELECT, TAG_ID.SELECT],
   [TAG_NAMES.SOURCE, TAG_ID.SOURCE],
@@ -70137,7 +70033,9 @@ var SPECIAL_ELEMENTS = {
   [NS.XML]: /* @__PURE__ */ new Set(),
   [NS.XMLNS]: /* @__PURE__ */ new Set()
 };
-var NUMBERED_HEADERS = /* @__PURE__ */ new Set([$.H1, $.H2, $.H3, $.H4, $.H5, $.H6]);
+function isNumberedHeader(tn) {
+  return tn === $.H1 || tn === $.H2 || tn === $.H3 || tn === $.H4 || tn === $.H5 || tn === $.H6;
+}
 var UNESCAPED_TEXT = /* @__PURE__ */ new Set([
   TAG_NAMES.STYLE,
   TAG_NAMES.SCRIPT,
@@ -70152,6 +70050,35 @@ function hasUnescapedText(tn, scriptingEnabled) {
 }
 
 // node_modules/parse5/dist/tokenizer/index.js
+var C1_CONTROLS_REFERENCE_REPLACEMENTS = /* @__PURE__ */ new Map([
+  [128, 8364],
+  [130, 8218],
+  [131, 402],
+  [132, 8222],
+  [133, 8230],
+  [134, 8224],
+  [135, 8225],
+  [136, 710],
+  [137, 8240],
+  [138, 352],
+  [139, 8249],
+  [140, 338],
+  [142, 381],
+  [145, 8216],
+  [146, 8217],
+  [147, 8220],
+  [148, 8221],
+  [149, 8226],
+  [150, 8211],
+  [151, 8212],
+  [152, 732],
+  [153, 8482],
+  [154, 353],
+  [155, 8250],
+  [156, 339],
+  [158, 382],
+  [159, 376]
+]);
 var State;
 (function(State3) {
   State3[State3["DATA"] = 0] = "DATA";
@@ -70226,7 +70153,13 @@ var State;
   State3[State3["CDATA_SECTION_BRACKET"] = 69] = "CDATA_SECTION_BRACKET";
   State3[State3["CDATA_SECTION_END"] = 70] = "CDATA_SECTION_END";
   State3[State3["CHARACTER_REFERENCE"] = 71] = "CHARACTER_REFERENCE";
-  State3[State3["AMBIGUOUS_AMPERSAND"] = 72] = "AMBIGUOUS_AMPERSAND";
+  State3[State3["NAMED_CHARACTER_REFERENCE"] = 72] = "NAMED_CHARACTER_REFERENCE";
+  State3[State3["AMBIGUOUS_AMPERSAND"] = 73] = "AMBIGUOUS_AMPERSAND";
+  State3[State3["NUMERIC_CHARACTER_REFERENCE"] = 74] = "NUMERIC_CHARACTER_REFERENCE";
+  State3[State3["HEXADEMICAL_CHARACTER_REFERENCE_START"] = 75] = "HEXADEMICAL_CHARACTER_REFERENCE_START";
+  State3[State3["HEXADEMICAL_CHARACTER_REFERENCE"] = 76] = "HEXADEMICAL_CHARACTER_REFERENCE";
+  State3[State3["DECIMAL_CHARACTER_REFERENCE"] = 77] = "DECIMAL_CHARACTER_REFERENCE";
+  State3[State3["NUMERIC_CHARACTER_REFERENCE_END"] = 78] = "NUMERIC_CHARACTER_REFERENCE_END";
 })(State || (State = {}));
 var TokenizerMode = {
   DATA: State.DATA,
@@ -70251,28 +70184,26 @@ function isAsciiLetter(cp) {
 function isAsciiAlphaNumeric2(cp) {
   return isAsciiLetter(cp) || isAsciiDigit(cp);
 }
+function isAsciiUpperHexDigit(cp) {
+  return cp >= CODE_POINTS.LATIN_CAPITAL_A && cp <= CODE_POINTS.LATIN_CAPITAL_F;
+}
+function isAsciiLowerHexDigit(cp) {
+  return cp >= CODE_POINTS.LATIN_SMALL_A && cp <= CODE_POINTS.LATIN_SMALL_F;
+}
+function isAsciiHexDigit(cp) {
+  return isAsciiDigit(cp) || isAsciiUpperHexDigit(cp) || isAsciiLowerHexDigit(cp);
+}
 function toAsciiLower(cp) {
   return cp + 32;
 }
 function isWhitespace(cp) {
   return cp === CODE_POINTS.SPACE || cp === CODE_POINTS.LINE_FEED || cp === CODE_POINTS.TABULATION || cp === CODE_POINTS.FORM_FEED;
 }
+function isEntityInAttributeInvalidEnd2(nextCp) {
+  return nextCp === CODE_POINTS.EQUALS_SIGN || isAsciiAlphaNumeric2(nextCp);
+}
 function isScriptDataDoubleEscapeSequenceEnd(cp) {
   return isWhitespace(cp) || cp === CODE_POINTS.SOLIDUS || cp === CODE_POINTS.GREATER_THAN_SIGN;
-}
-function getErrorForNumericCharacterReference(code) {
-  if (code === CODE_POINTS.NULL) {
-    return ERR.nullCharacterReference;
-  } else if (code > 1114111) {
-    return ERR.characterReferenceOutsideUnicodeRange;
-  } else if (isSurrogate(code)) {
-    return ERR.surrogateCharacterReference;
-  } else if (isUndefinedCodePoint(code)) {
-    return ERR.noncharacterCharacterReference;
-  } else if (isControlCodePoint(code) || code === CODE_POINTS.CARRIAGE_RETURN) {
-    return ERR.controlCharacterReference;
-  }
-  return null;
 }
 var Tokenizer = class {
   constructor(options, handler2) {
@@ -70285,34 +70216,18 @@ var Tokenizer = class {
     this.active = false;
     this.state = State.DATA;
     this.returnState = State.DATA;
-    this.entityStartPos = 0;
+    this.charRefCode = -1;
     this.consumedAfterSnapshot = -1;
     this.currentCharacterToken = null;
     this.currentToken = null;
     this.currentAttr = { name: "", value: "" };
     this.preprocessor = new Preprocessor(handler2);
     this.currentLocation = this.getCurrentLocation(-1);
-    this.entityDecoder = new EntityDecoder(decode_data_html_default, (cp, consumed) => {
-      this.preprocessor.pos = this.entityStartPos + consumed - 1;
-      this._flushCodePointConsumedAsCharacterReference(cp);
-    }, handler2.onParseError ? {
-      missingSemicolonAfterCharacterReference: () => {
-        this._err(ERR.missingSemicolonAfterCharacterReference, 1);
-      },
-      absenceOfDigitsInNumericCharacterReference: (consumed) => {
-        this._err(ERR.absenceOfDigitsInNumericCharacterReference, this.entityStartPos - this.preprocessor.pos + consumed);
-      },
-      validateNumericCharacterReference: (code) => {
-        const error2 = getErrorForNumericCharacterReference(code);
-        if (error2)
-          this._err(error2, 1);
-      }
-    } : void 0);
   }
   //Errors
-  _err(code, cpOffset = 0) {
+  _err(code) {
     var _a2, _b;
-    (_b = (_a2 = this.handler).onParseError) === null || _b === void 0 ? void 0 : _b.call(_a2, this.preprocessor.getError(code, cpOffset));
+    (_b = (_a2 = this.handler).onParseError) === null || _b === void 0 ? void 0 : _b.call(_a2, this.preprocessor.getError(code));
   }
   // NOTE: `offset` may never run across line boundaries.
   getCurrentLocation(offset) {
@@ -70373,8 +70288,7 @@ var Tokenizer = class {
   //Hibernation
   _ensureHibernation() {
     if (this.preprocessor.endOfChunkHit) {
-      this.preprocessor.retreat(this.consumedAfterSnapshot);
-      this.consumedAfterSnapshot = 0;
+      this._unconsume(this.consumedAfterSnapshot);
       this.active = false;
       return true;
     }
@@ -70384,6 +70298,14 @@ var Tokenizer = class {
   _consume() {
     this.consumedAfterSnapshot++;
     return this.preprocessor.advance();
+  }
+  _unconsume(count) {
+    this.consumedAfterSnapshot -= count;
+    this.preprocessor.retreat(count);
+  }
+  _reconsumeInState(state, cp) {
+    this.state = state;
+    this._callState(cp);
   }
   _advanceBy(count) {
     this.consumedAfterSnapshot += count;
@@ -70550,7 +70472,7 @@ var Tokenizer = class {
     this.active = false;
   }
   //Characters emission
-  //OPTIMIZATION: The specification uses only one type of character token (one token per character).
+  //OPTIMIZATION: specification uses only one type of character tokens (one token per character).
   //This causes a huge memory overhead and a lot of unnecessary parser loops. parse5 uses 3 groups of characters.
   //If we have a sequence of characters that belong to the same group, the parser can process it
   //as a single solid character token.
@@ -70560,13 +70482,13 @@ var Tokenizer = class {
   //3)TokenType.CHARACTER - any character sequence which don't belong to groups 1 and 2 (e.g. 'abcdef1234@@#$%^')
   _appendCharToCurrentCharacterToken(type, ch) {
     if (this.currentCharacterToken) {
-      if (this.currentCharacterToken.type === type) {
-        this.currentCharacterToken.chars += ch;
-        return;
-      } else {
+      if (this.currentCharacterToken.type !== type) {
         this.currentLocation = this.getCurrentLocation(0);
         this._emitCurrentCharacterToken(this.currentLocation);
         this.preprocessor.dropParsedChunk();
+      } else {
+        this.currentCharacterToken.chars += ch;
+        return;
       }
     }
     this._createCharacterToken(type, ch);
@@ -70581,11 +70503,39 @@ var Tokenizer = class {
     this._appendCharToCurrentCharacterToken(TokenType.CHARACTER, ch);
   }
   // Character reference helpers
-  _startCharacterReference() {
-    this.returnState = this.state;
-    this.state = State.CHARACTER_REFERENCE;
-    this.entityStartPos = this.preprocessor.pos;
-    this.entityDecoder.startEntity(this._isCharacterReferenceInAttribute() ? DecodingMode.Attribute : DecodingMode.Legacy);
+  _matchNamedCharacterReference(cp) {
+    let result = null;
+    let excess = 0;
+    let withoutSemicolon = false;
+    for (let i = 0, current = decode_data_html_default[0]; i >= 0; cp = this._consume()) {
+      i = determineBranch(decode_data_html_default, current, i + 1, cp);
+      if (i < 0)
+        break;
+      excess += 1;
+      current = decode_data_html_default[i];
+      const masked = current & BinTrieFlags.VALUE_LENGTH;
+      if (masked) {
+        const valueLength = (masked >> 14) - 1;
+        if (cp !== CODE_POINTS.SEMICOLON && this._isCharacterReferenceInAttribute() && isEntityInAttributeInvalidEnd2(this.preprocessor.peek(1))) {
+          result = [CODE_POINTS.AMPERSAND];
+          i += valueLength;
+        } else {
+          result = valueLength === 0 ? [decode_data_html_default[i] & ~BinTrieFlags.VALUE_LENGTH] : valueLength === 1 ? [decode_data_html_default[++i]] : [decode_data_html_default[++i], decode_data_html_default[++i]];
+          excess = 0;
+          withoutSemicolon = cp !== CODE_POINTS.SEMICOLON;
+        }
+        if (valueLength === 0) {
+          this._consume();
+          break;
+        }
+      }
+    }
+    this._unconsume(excess);
+    if (withoutSemicolon && !this.preprocessor.endOfChunkHit) {
+      this._err(ERR.missingSemicolonAfterCharacterReference);
+    }
+    this._unconsume(1);
+    return result;
   }
   _isCharacterReferenceInAttribute() {
     return this.returnState === State.ATTRIBUTE_VALUE_DOUBLE_QUOTED || this.returnState === State.ATTRIBUTE_VALUE_SINGLE_QUOTED || this.returnState === State.ATTRIBUTE_VALUE_UNQUOTED;
@@ -70885,11 +70835,35 @@ var Tokenizer = class {
         break;
       }
       case State.CHARACTER_REFERENCE: {
-        this._stateCharacterReference();
+        this._stateCharacterReference(cp);
+        break;
+      }
+      case State.NAMED_CHARACTER_REFERENCE: {
+        this._stateNamedCharacterReference(cp);
         break;
       }
       case State.AMBIGUOUS_AMPERSAND: {
         this._stateAmbiguousAmpersand(cp);
+        break;
+      }
+      case State.NUMERIC_CHARACTER_REFERENCE: {
+        this._stateNumericCharacterReference(cp);
+        break;
+      }
+      case State.HEXADEMICAL_CHARACTER_REFERENCE_START: {
+        this._stateHexademicalCharacterReferenceStart(cp);
+        break;
+      }
+      case State.HEXADEMICAL_CHARACTER_REFERENCE: {
+        this._stateHexademicalCharacterReference(cp);
+        break;
+      }
+      case State.DECIMAL_CHARACTER_REFERENCE: {
+        this._stateDecimalCharacterReference(cp);
+        break;
+      }
+      case State.NUMERIC_CHARACTER_REFERENCE_END: {
+        this._stateNumericCharacterReferenceEnd(cp);
         break;
       }
       default: {
@@ -70907,7 +70881,8 @@ var Tokenizer = class {
         break;
       }
       case CODE_POINTS.AMPERSAND: {
-        this._startCharacterReference();
+        this.returnState = State.DATA;
+        this.state = State.CHARACTER_REFERENCE;
         break;
       }
       case CODE_POINTS.NULL: {
@@ -70929,7 +70904,8 @@ var Tokenizer = class {
   _stateRcdata(cp) {
     switch (cp) {
       case CODE_POINTS.AMPERSAND: {
-        this._startCharacterReference();
+        this.returnState = State.RCDATA;
+        this.state = State.CHARACTER_REFERENCE;
         break;
       }
       case CODE_POINTS.LESS_THAN_SIGN: {
@@ -71678,7 +71654,8 @@ var Tokenizer = class {
         break;
       }
       case CODE_POINTS.AMPERSAND: {
-        this._startCharacterReference();
+        this.returnState = State.ATTRIBUTE_VALUE_DOUBLE_QUOTED;
+        this.state = State.CHARACTER_REFERENCE;
         break;
       }
       case CODE_POINTS.NULL: {
@@ -71705,7 +71682,8 @@ var Tokenizer = class {
         break;
       }
       case CODE_POINTS.AMPERSAND: {
-        this._startCharacterReference();
+        this.returnState = State.ATTRIBUTE_VALUE_SINGLE_QUOTED;
+        this.state = State.CHARACTER_REFERENCE;
         break;
       }
       case CODE_POINTS.NULL: {
@@ -71736,7 +71714,8 @@ var Tokenizer = class {
         break;
       }
       case CODE_POINTS.AMPERSAND: {
-        this._startCharacterReference();
+        this.returnState = State.ATTRIBUTE_VALUE_UNQUOTED;
+        this.state = State.CHARACTER_REFERENCE;
         break;
       }
       case CODE_POINTS.GREATER_THAN_SIGN: {
@@ -72731,25 +72710,30 @@ var Tokenizer = class {
   }
   // Character reference state
   //------------------------------------------------------------------
-  _stateCharacterReference() {
-    let length = this.entityDecoder.write(this.preprocessor.html, this.preprocessor.pos);
-    if (length < 0) {
-      if (this.preprocessor.lastChunkWritten) {
-        length = this.entityDecoder.end();
-      } else {
-        this.active = false;
-        this.preprocessor.pos = this.preprocessor.html.length - 1;
-        this.consumedAfterSnapshot = 0;
-        this.preprocessor.endOfChunkHit = true;
-        return;
-      }
-    }
-    if (length === 0) {
-      this.preprocessor.pos = this.entityStartPos;
-      this._flushCodePointConsumedAsCharacterReference(CODE_POINTS.AMPERSAND);
-      this.state = !this._isCharacterReferenceInAttribute() && isAsciiAlphaNumeric2(this.preprocessor.peek(1)) ? State.AMBIGUOUS_AMPERSAND : this.returnState;
+  _stateCharacterReference(cp) {
+    if (cp === CODE_POINTS.NUMBER_SIGN) {
+      this.state = State.NUMERIC_CHARACTER_REFERENCE;
+    } else if (isAsciiAlphaNumeric2(cp)) {
+      this.state = State.NAMED_CHARACTER_REFERENCE;
+      this._stateNamedCharacterReference(cp);
     } else {
+      this._flushCodePointConsumedAsCharacterReference(CODE_POINTS.AMPERSAND);
+      this._reconsumeInState(this.returnState, cp);
+    }
+  }
+  // Named character reference state
+  //------------------------------------------------------------------
+  _stateNamedCharacterReference(cp) {
+    const matchResult = this._matchNamedCharacterReference(cp);
+    if (this._ensureHibernation()) {
+    } else if (matchResult) {
+      for (let i = 0; i < matchResult.length; i++) {
+        this._flushCodePointConsumedAsCharacterReference(matchResult[i]);
+      }
       this.state = this.returnState;
+    } else {
+      this._flushCodePointConsumedAsCharacterReference(CODE_POINTS.AMPERSAND);
+      this.state = State.AMBIGUOUS_AMPERSAND;
     }
   }
   // Ambiguos ampersand state
@@ -72761,9 +72745,92 @@ var Tokenizer = class {
       if (cp === CODE_POINTS.SEMICOLON) {
         this._err(ERR.unknownNamedCharacterReference);
       }
-      this.state = this.returnState;
-      this._callState(cp);
+      this._reconsumeInState(this.returnState, cp);
     }
+  }
+  // Numeric character reference state
+  //------------------------------------------------------------------
+  _stateNumericCharacterReference(cp) {
+    this.charRefCode = 0;
+    if (cp === CODE_POINTS.LATIN_SMALL_X || cp === CODE_POINTS.LATIN_CAPITAL_X) {
+      this.state = State.HEXADEMICAL_CHARACTER_REFERENCE_START;
+    } else if (isAsciiDigit(cp)) {
+      this.state = State.DECIMAL_CHARACTER_REFERENCE;
+      this._stateDecimalCharacterReference(cp);
+    } else {
+      this._err(ERR.absenceOfDigitsInNumericCharacterReference);
+      this._flushCodePointConsumedAsCharacterReference(CODE_POINTS.AMPERSAND);
+      this._flushCodePointConsumedAsCharacterReference(CODE_POINTS.NUMBER_SIGN);
+      this._reconsumeInState(this.returnState, cp);
+    }
+  }
+  // Hexademical character reference start state
+  //------------------------------------------------------------------
+  _stateHexademicalCharacterReferenceStart(cp) {
+    if (isAsciiHexDigit(cp)) {
+      this.state = State.HEXADEMICAL_CHARACTER_REFERENCE;
+      this._stateHexademicalCharacterReference(cp);
+    } else {
+      this._err(ERR.absenceOfDigitsInNumericCharacterReference);
+      this._flushCodePointConsumedAsCharacterReference(CODE_POINTS.AMPERSAND);
+      this._flushCodePointConsumedAsCharacterReference(CODE_POINTS.NUMBER_SIGN);
+      this._unconsume(2);
+      this.state = this.returnState;
+    }
+  }
+  // Hexademical character reference state
+  //------------------------------------------------------------------
+  _stateHexademicalCharacterReference(cp) {
+    if (isAsciiUpperHexDigit(cp)) {
+      this.charRefCode = this.charRefCode * 16 + cp - 55;
+    } else if (isAsciiLowerHexDigit(cp)) {
+      this.charRefCode = this.charRefCode * 16 + cp - 87;
+    } else if (isAsciiDigit(cp)) {
+      this.charRefCode = this.charRefCode * 16 + cp - 48;
+    } else if (cp === CODE_POINTS.SEMICOLON) {
+      this.state = State.NUMERIC_CHARACTER_REFERENCE_END;
+    } else {
+      this._err(ERR.missingSemicolonAfterCharacterReference);
+      this.state = State.NUMERIC_CHARACTER_REFERENCE_END;
+      this._stateNumericCharacterReferenceEnd(cp);
+    }
+  }
+  // Decimal character reference state
+  //------------------------------------------------------------------
+  _stateDecimalCharacterReference(cp) {
+    if (isAsciiDigit(cp)) {
+      this.charRefCode = this.charRefCode * 10 + cp - 48;
+    } else if (cp === CODE_POINTS.SEMICOLON) {
+      this.state = State.NUMERIC_CHARACTER_REFERENCE_END;
+    } else {
+      this._err(ERR.missingSemicolonAfterCharacterReference);
+      this.state = State.NUMERIC_CHARACTER_REFERENCE_END;
+      this._stateNumericCharacterReferenceEnd(cp);
+    }
+  }
+  // Numeric character reference end state
+  //------------------------------------------------------------------
+  _stateNumericCharacterReferenceEnd(cp) {
+    if (this.charRefCode === CODE_POINTS.NULL) {
+      this._err(ERR.nullCharacterReference);
+      this.charRefCode = CODE_POINTS.REPLACEMENT_CHARACTER;
+    } else if (this.charRefCode > 1114111) {
+      this._err(ERR.characterReferenceOutsideUnicodeRange);
+      this.charRefCode = CODE_POINTS.REPLACEMENT_CHARACTER;
+    } else if (isSurrogate(this.charRefCode)) {
+      this._err(ERR.surrogateCharacterReference);
+      this.charRefCode = CODE_POINTS.REPLACEMENT_CHARACTER;
+    } else if (isUndefinedCodePoint(this.charRefCode)) {
+      this._err(ERR.noncharacterCharacterReference);
+    } else if (isControlCodePoint(this.charRefCode) || this.charRefCode === CODE_POINTS.CARRIAGE_RETURN) {
+      this._err(ERR.controlCharacterReference);
+      const replacement = C1_CONTROLS_REFERENCE_REPLACEMENTS.get(this.charRefCode);
+      if (replacement !== void 0) {
+        this.charRefCode = replacement;
+      }
+    }
+    this._flushCodePointConsumedAsCharacterReference(this.charRefCode);
+    this._reconsumeInState(this.returnState, cp);
   }
 };
 
@@ -72780,25 +72847,31 @@ var IMPLICIT_END_TAG_REQUIRED_THOROUGHLY = /* @__PURE__ */ new Set([
   TAG_ID.THEAD,
   TAG_ID.TR
 ]);
-var SCOPING_ELEMENTS_HTML = /* @__PURE__ */ new Set([
-  TAG_ID.APPLET,
-  TAG_ID.CAPTION,
-  TAG_ID.HTML,
-  TAG_ID.MARQUEE,
-  TAG_ID.OBJECT,
-  TAG_ID.TABLE,
-  TAG_ID.TD,
-  TAG_ID.TEMPLATE,
-  TAG_ID.TH
+var SCOPING_ELEMENT_NS = /* @__PURE__ */ new Map([
+  [TAG_ID.APPLET, NS.HTML],
+  [TAG_ID.CAPTION, NS.HTML],
+  [TAG_ID.HTML, NS.HTML],
+  [TAG_ID.MARQUEE, NS.HTML],
+  [TAG_ID.OBJECT, NS.HTML],
+  [TAG_ID.TABLE, NS.HTML],
+  [TAG_ID.TD, NS.HTML],
+  [TAG_ID.TEMPLATE, NS.HTML],
+  [TAG_ID.TH, NS.HTML],
+  [TAG_ID.ANNOTATION_XML, NS.MATHML],
+  [TAG_ID.MI, NS.MATHML],
+  [TAG_ID.MN, NS.MATHML],
+  [TAG_ID.MO, NS.MATHML],
+  [TAG_ID.MS, NS.MATHML],
+  [TAG_ID.MTEXT, NS.MATHML],
+  [TAG_ID.DESC, NS.SVG],
+  [TAG_ID.FOREIGN_OBJECT, NS.SVG],
+  [TAG_ID.TITLE, NS.SVG]
 ]);
-var SCOPING_ELEMENTS_HTML_LIST = /* @__PURE__ */ new Set([...SCOPING_ELEMENTS_HTML, TAG_ID.OL, TAG_ID.UL]);
-var SCOPING_ELEMENTS_HTML_BUTTON = /* @__PURE__ */ new Set([...SCOPING_ELEMENTS_HTML, TAG_ID.BUTTON]);
-var SCOPING_ELEMENTS_MATHML = /* @__PURE__ */ new Set([TAG_ID.ANNOTATION_XML, TAG_ID.MI, TAG_ID.MN, TAG_ID.MO, TAG_ID.MS, TAG_ID.MTEXT]);
-var SCOPING_ELEMENTS_SVG = /* @__PURE__ */ new Set([TAG_ID.DESC, TAG_ID.FOREIGN_OBJECT, TAG_ID.TITLE]);
-var TABLE_ROW_CONTEXT = /* @__PURE__ */ new Set([TAG_ID.TR, TAG_ID.TEMPLATE, TAG_ID.HTML]);
-var TABLE_BODY_CONTEXT = /* @__PURE__ */ new Set([TAG_ID.TBODY, TAG_ID.TFOOT, TAG_ID.THEAD, TAG_ID.TEMPLATE, TAG_ID.HTML]);
-var TABLE_CONTEXT = /* @__PURE__ */ new Set([TAG_ID.TABLE, TAG_ID.TEMPLATE, TAG_ID.HTML]);
-var TABLE_CELLS = /* @__PURE__ */ new Set([TAG_ID.TD, TAG_ID.TH]);
+var NAMED_HEADERS = [TAG_ID.H1, TAG_ID.H2, TAG_ID.H3, TAG_ID.H4, TAG_ID.H5, TAG_ID.H6];
+var TABLE_ROW_CONTEXT = [TAG_ID.TR, TAG_ID.TEMPLATE, TAG_ID.HTML];
+var TABLE_BODY_CONTEXT = [TAG_ID.TBODY, TAG_ID.TFOOT, TAG_ID.THEAD, TAG_ID.TEMPLATE, TAG_ID.HTML];
+var TABLE_CONTEXT = [TAG_ID.TABLE, TAG_ID.TEMPLATE, TAG_ID.HTML];
+var TABLE_CELLS = [TAG_ID.TD, TAG_ID.TH];
 var OpenElementStack = class {
   get currentTmplContentOrNode() {
     return this._isInTemplate() ? this.treeAdapter.getTemplateContent(this.current) : this.current;
@@ -72890,7 +72963,7 @@ var OpenElementStack = class {
     this.shortenToLength(idx < 0 ? 0 : idx);
   }
   popUntilNumberedHeaderPopped() {
-    this.popUntilPopped(NUMBERED_HEADERS, NS.HTML);
+    this.popUntilPopped(NAMED_HEADERS, NS.HTML);
   }
   popUntilTableCellPopped() {
     this.popUntilPopped(TABLE_CELLS, NS.HTML);
@@ -72901,7 +72974,7 @@ var OpenElementStack = class {
   }
   _indexOfTagNames(tagNames, namespace) {
     for (let i = this.stackTop; i >= 0; i--) {
-      if (tagNames.has(this.tagIDs[i]) && this.treeAdapter.getNamespaceURI(this.items[i]) === namespace) {
+      if (tagNames.includes(this.tagIDs[i]) && this.treeAdapter.getNamespaceURI(this.items[i]) === namespace) {
         return i;
       }
     }
@@ -72949,117 +73022,102 @@ var OpenElementStack = class {
     return this.stackTop === 0 && this.tagIDs[0] === TAG_ID.HTML;
   }
   //Element in scope
-  hasInDynamicScope(tagName, htmlScope) {
+  hasInScope(tagName) {
     for (let i = this.stackTop; i >= 0; i--) {
       const tn = this.tagIDs[i];
-      switch (this.treeAdapter.getNamespaceURI(this.items[i])) {
-        case NS.HTML: {
-          if (tn === tagName)
-            return true;
-          if (htmlScope.has(tn))
-            return false;
-          break;
-        }
-        case NS.SVG: {
-          if (SCOPING_ELEMENTS_SVG.has(tn))
-            return false;
-          break;
-        }
-        case NS.MATHML: {
-          if (SCOPING_ELEMENTS_MATHML.has(tn))
-            return false;
-          break;
-        }
+      const ns = this.treeAdapter.getNamespaceURI(this.items[i]);
+      if (tn === tagName && ns === NS.HTML) {
+        return true;
+      }
+      if (SCOPING_ELEMENT_NS.get(tn) === ns) {
+        return false;
       }
     }
     return true;
   }
-  hasInScope(tagName) {
-    return this.hasInDynamicScope(tagName, SCOPING_ELEMENTS_HTML);
-  }
-  hasInListItemScope(tagName) {
-    return this.hasInDynamicScope(tagName, SCOPING_ELEMENTS_HTML_LIST);
-  }
-  hasInButtonScope(tagName) {
-    return this.hasInDynamicScope(tagName, SCOPING_ELEMENTS_HTML_BUTTON);
-  }
   hasNumberedHeaderInScope() {
     for (let i = this.stackTop; i >= 0; i--) {
       const tn = this.tagIDs[i];
-      switch (this.treeAdapter.getNamespaceURI(this.items[i])) {
-        case NS.HTML: {
-          if (NUMBERED_HEADERS.has(tn))
-            return true;
-          if (SCOPING_ELEMENTS_HTML.has(tn))
-            return false;
-          break;
-        }
-        case NS.SVG: {
-          if (SCOPING_ELEMENTS_SVG.has(tn))
-            return false;
-          break;
-        }
-        case NS.MATHML: {
-          if (SCOPING_ELEMENTS_MATHML.has(tn))
-            return false;
-          break;
-        }
+      const ns = this.treeAdapter.getNamespaceURI(this.items[i]);
+      if (isNumberedHeader(tn) && ns === NS.HTML) {
+        return true;
+      }
+      if (SCOPING_ELEMENT_NS.get(tn) === ns) {
+        return false;
+      }
+    }
+    return true;
+  }
+  hasInListItemScope(tagName) {
+    for (let i = this.stackTop; i >= 0; i--) {
+      const tn = this.tagIDs[i];
+      const ns = this.treeAdapter.getNamespaceURI(this.items[i]);
+      if (tn === tagName && ns === NS.HTML) {
+        return true;
+      }
+      if ((tn === TAG_ID.UL || tn === TAG_ID.OL) && ns === NS.HTML || SCOPING_ELEMENT_NS.get(tn) === ns) {
+        return false;
+      }
+    }
+    return true;
+  }
+  hasInButtonScope(tagName) {
+    for (let i = this.stackTop; i >= 0; i--) {
+      const tn = this.tagIDs[i];
+      const ns = this.treeAdapter.getNamespaceURI(this.items[i]);
+      if (tn === tagName && ns === NS.HTML) {
+        return true;
+      }
+      if (tn === TAG_ID.BUTTON && ns === NS.HTML || SCOPING_ELEMENT_NS.get(tn) === ns) {
+        return false;
       }
     }
     return true;
   }
   hasInTableScope(tagName) {
     for (let i = this.stackTop; i >= 0; i--) {
-      if (this.treeAdapter.getNamespaceURI(this.items[i]) !== NS.HTML) {
+      const tn = this.tagIDs[i];
+      const ns = this.treeAdapter.getNamespaceURI(this.items[i]);
+      if (ns !== NS.HTML) {
         continue;
       }
-      switch (this.tagIDs[i]) {
-        case tagName: {
-          return true;
-        }
-        case TAG_ID.TABLE:
-        case TAG_ID.HTML: {
-          return false;
-        }
+      if (tn === tagName) {
+        return true;
+      }
+      if (tn === TAG_ID.TABLE || tn === TAG_ID.TEMPLATE || tn === TAG_ID.HTML) {
+        return false;
       }
     }
     return true;
   }
   hasTableBodyContextInTableScope() {
     for (let i = this.stackTop; i >= 0; i--) {
-      if (this.treeAdapter.getNamespaceURI(this.items[i]) !== NS.HTML) {
+      const tn = this.tagIDs[i];
+      const ns = this.treeAdapter.getNamespaceURI(this.items[i]);
+      if (ns !== NS.HTML) {
         continue;
       }
-      switch (this.tagIDs[i]) {
-        case TAG_ID.TBODY:
-        case TAG_ID.THEAD:
-        case TAG_ID.TFOOT: {
-          return true;
-        }
-        case TAG_ID.TABLE:
-        case TAG_ID.HTML: {
-          return false;
-        }
+      if (tn === TAG_ID.TBODY || tn === TAG_ID.THEAD || tn === TAG_ID.TFOOT) {
+        return true;
+      }
+      if (tn === TAG_ID.TABLE || tn === TAG_ID.HTML) {
+        return false;
       }
     }
     return true;
   }
   hasInSelectScope(tagName) {
     for (let i = this.stackTop; i >= 0; i--) {
-      if (this.treeAdapter.getNamespaceURI(this.items[i]) !== NS.HTML) {
+      const tn = this.tagIDs[i];
+      const ns = this.treeAdapter.getNamespaceURI(this.items[i]);
+      if (ns !== NS.HTML) {
         continue;
       }
-      switch (this.tagIDs[i]) {
-        case tagName: {
-          return true;
-        }
-        case TAG_ID.OPTION:
-        case TAG_ID.OPTGROUP: {
-          break;
-        }
-        default: {
-          return false;
-        }
+      if (tn === tagName) {
+        return true;
+      }
+      if (tn !== TAG_ID.OPTION && tn !== TAG_ID.OPTGROUP) {
+        return false;
       }
     }
     return true;
@@ -73088,7 +73146,7 @@ var EntryType;
 (function(EntryType2) {
   EntryType2[EntryType2["Marker"] = 0] = "Marker";
   EntryType2[EntryType2["Element"] = 1] = "Element";
-})(EntryType || (EntryType = {}));
+})(EntryType = EntryType || (EntryType = {}));
 var MARKER = { type: EntryType.Marker };
 var FormattingElementList = class {
   constructor(treeAdapter) {
@@ -73188,6 +73246,13 @@ var FormattingElementList = class {
 };
 
 // node_modules/parse5/dist/tree-adapters/default.js
+function createTextNode(value) {
+  return {
+    nodeName: "#text",
+    value,
+    parentNode: null
+  };
+}
 var defaultTreeAdapter = {
   //Node construction
   createDocument() {
@@ -73217,13 +73282,6 @@ var defaultTreeAdapter = {
     return {
       nodeName: "#comment",
       data: data2,
-      parentNode: null
-    };
-  },
-  createTextNode(value) {
-    return {
-      nodeName: "#text",
-      value,
       parentNode: null
     };
   },
@@ -73281,14 +73339,14 @@ var defaultTreeAdapter = {
         return;
       }
     }
-    defaultTreeAdapter.appendChild(parentNode, defaultTreeAdapter.createTextNode(text3));
+    defaultTreeAdapter.appendChild(parentNode, createTextNode(text3));
   },
   insertTextBefore(parentNode, text3, referenceNode) {
     const prevNode = parentNode.childNodes[parentNode.childNodes.indexOf(referenceNode) - 1];
     if (prevNode && defaultTreeAdapter.isTextNode(prevNode)) {
       prevNode.value += text3;
     } else {
-      defaultTreeAdapter.insertBefore(parentNode, defaultTreeAdapter.createTextNode(text3), referenceNode);
+      defaultTreeAdapter.insertBefore(parentNode, createTextNode(text3), referenceNode);
     }
   },
   adoptAttributes(recipient, attrs) {
@@ -73543,6 +73601,7 @@ var XML_ATTRS_ADJUSTMENT_MAP = /* @__PURE__ */ new Map([
   ["xlink:show", { prefix: "xlink", name: "show", namespace: NS.XLINK }],
   ["xlink:title", { prefix: "xlink", name: "title", namespace: NS.XLINK }],
   ["xlink:type", { prefix: "xlink", name: "type", namespace: NS.XLINK }],
+  ["xml:base", { prefix: "xml", name: "base", namespace: NS.XML }],
   ["xml:lang", { prefix: "xml", name: "lang", namespace: NS.XML }],
   ["xml:space", { prefix: "xml", name: "space", namespace: NS.XML }],
   ["xmlns", { prefix: "", name: "xmlns", namespace: NS.XMLNS }],
@@ -73796,7 +73855,6 @@ var Parser = class {
     return fragment;
   }
   //Errors
-  /** @internal */
   _err(token, code, beforeToken) {
     var _a2;
     if (!this.onParseError)
@@ -73814,14 +73872,12 @@ var Parser = class {
     this.onParseError(err);
   }
   //Stack events
-  /** @internal */
   onItemPush(node, tid, isTop) {
     var _a2, _b;
     (_b = (_a2 = this.treeAdapter).onItemPush) === null || _b === void 0 ? void 0 : _b.call(_a2, node);
     if (isTop && this.openElements.stackTop > 0)
       this._setContextModes(node, tid);
   }
-  /** @internal */
   onItemPop(node, isTop) {
     var _a2, _b;
     if (this.options.sourceCodeLocationInfo) {
@@ -73845,7 +73901,6 @@ var Parser = class {
     this.currentNotInHTML = !isHTML;
     this.tokenizer.inForeignNode = !isHTML && !this._isIntegrationPoint(tid, current);
   }
-  /** @protected */
   _switchToTextParsing(currentToken, nextTokenizerState) {
     this._insertElement(currentToken, NS.HTML);
     this.tokenizer.state = nextTokenizerState;
@@ -73858,11 +73913,9 @@ var Parser = class {
     this.tokenizer.state = TokenizerMode.PLAINTEXT;
   }
   //Fragment parsing
-  /** @protected */
   _getAdjustedCurrentElement() {
     return this.openElements.stackTop === 0 && this.fragmentContext ? this.fragmentContext : this.openElements.current;
   }
-  /** @protected */
   _findFormInFragmentContext() {
     let node = this.fragmentContext;
     while (node) {
@@ -73904,7 +73957,6 @@ var Parser = class {
     }
   }
   //Tree mutation
-  /** @protected */
   _setDocumentType(token) {
     const name314 = token.name || "";
     const publicId = token.publicId || "";
@@ -73918,7 +73970,6 @@ var Parser = class {
       }
     }
   }
-  /** @protected */
   _attachElementToTree(element, location) {
     if (this.options.sourceCodeLocationInfo) {
       const loc = location && {
@@ -73934,28 +73985,20 @@ var Parser = class {
       this.treeAdapter.appendChild(parent2, element);
     }
   }
-  /**
-   * For self-closing tags. Add an element to the tree, but skip adding it
-   * to the stack.
-   */
-  /** @protected */
   _appendElement(token, namespaceURI) {
     const element = this.treeAdapter.createElement(token.tagName, namespaceURI, token.attrs);
     this._attachElementToTree(element, token.location);
   }
-  /** @protected */
   _insertElement(token, namespaceURI) {
     const element = this.treeAdapter.createElement(token.tagName, namespaceURI, token.attrs);
     this._attachElementToTree(element, token.location);
     this.openElements.push(element, token.tagID);
   }
-  /** @protected */
   _insertFakeElement(tagName, tagID) {
     const element = this.treeAdapter.createElement(tagName, NS.HTML, []);
     this._attachElementToTree(element, null);
     this.openElements.push(element, tagID);
   }
-  /** @protected */
   _insertTemplate(token) {
     const tmpl = this.treeAdapter.createElement(token.tagName, NS.HTML, token.attrs);
     const content = this.treeAdapter.createDocumentFragment();
@@ -73965,7 +74008,6 @@ var Parser = class {
     if (this.options.sourceCodeLocationInfo)
       this.treeAdapter.setNodeSourceCodeLocation(content, null);
   }
-  /** @protected */
   _insertFakeRootElement() {
     const element = this.treeAdapter.createElement(TAG_NAMES.HTML, NS.HTML, []);
     if (this.options.sourceCodeLocationInfo)
@@ -73973,7 +74015,6 @@ var Parser = class {
     this.treeAdapter.appendChild(this.openElements.current, element);
     this.openElements.push(element, TAG_ID.HTML);
   }
-  /** @protected */
   _appendCommentNode(token, parent2) {
     const commentNode = this.treeAdapter.createCommentNode(token.data);
     this.treeAdapter.appendChild(parent2, commentNode);
@@ -73981,7 +74022,6 @@ var Parser = class {
       this.treeAdapter.setNodeSourceCodeLocation(commentNode, token.location);
     }
   }
-  /** @protected */
   _insertCharacters(token) {
     let parent2;
     let beforeElement;
@@ -74009,14 +74049,12 @@ var Parser = class {
       this.treeAdapter.setNodeSourceCodeLocation(textNode, token.location);
     }
   }
-  /** @protected */
   _adoptNodes(donor, recipient) {
     for (let child = this.treeAdapter.getFirstChild(donor); child; child = this.treeAdapter.getFirstChild(donor)) {
       this.treeAdapter.detachNode(child);
       this.treeAdapter.appendChild(recipient, child);
     }
   }
-  /** @protected */
   _setEndLocation(element, closingToken) {
     if (this.treeAdapter.getNodeSourceCodeLocation(element) && closingToken.location) {
       const ctLoc = closingToken.location;
@@ -74060,7 +74098,6 @@ var Parser = class {
       (token.tagID === TAG_ID.MGLYPH || token.tagID === TAG_ID.MALIGNMARK) && !this._isIntegrationPoint(currentTagId, current, NS.HTML)
     );
   }
-  /** @protected */
   _processToken(token) {
     switch (token.type) {
       case TokenType.CHARACTER: {
@@ -74098,14 +74135,12 @@ var Parser = class {
     }
   }
   //Integration points
-  /** @protected */
   _isIntegrationPoint(tid, element, foreignNS) {
     const ns = this.treeAdapter.getNamespaceURI(element);
     const attrs = this.treeAdapter.getAttrList(element);
     return isIntegrationPoint(tid, ns, attrs, foreignNS);
   }
   //Active formatting elements reconstruction
-  /** @protected */
   _reconstructActiveFormattingElements() {
     const listLength = this.activeFormattingElements.entries.length;
     if (listLength) {
@@ -74119,20 +74154,17 @@ var Parser = class {
     }
   }
   //Close elements
-  /** @protected */
   _closeTableCell() {
     this.openElements.generateImpliedEndTags();
     this.openElements.popUntilTableCellPopped();
     this.activeFormattingElements.clearToLastMarker();
     this.insertionMode = InsertionMode.IN_ROW;
   }
-  /** @protected */
   _closePElement() {
     this.openElements.generateImpliedEndTagsWithExclusion(TAG_ID.P);
     this.openElements.popUntilTagNamePopped(TAG_ID.P);
   }
   //Insertion modes
-  /** @protected */
   _resetInsertionMode() {
     for (let i = this.openElements.stackTop; i >= 0; i--) {
       switch (i === 0 && this.fragmentContext ? this.fragmentContextID : this.openElements.tagIDs[i]) {
@@ -74197,7 +74229,6 @@ var Parser = class {
     }
     this.insertionMode = InsertionMode.IN_BODY;
   }
-  /** @protected */
   _resetInsertionModeForSelect(selectIdx) {
     if (selectIdx > 0) {
       for (let i = selectIdx - 1; i > 0; i--) {
@@ -74213,15 +74244,12 @@ var Parser = class {
     this.insertionMode = InsertionMode.IN_SELECT;
   }
   //Foster parenting
-  /** @protected */
   _isElementCausesFosterParenting(tn) {
     return TABLE_STRUCTURE_TAGS.has(tn);
   }
-  /** @protected */
   _shouldFosterParentOnInsertion() {
     return this.fosterParentingEnabled && this._isElementCausesFosterParenting(this.openElements.currentTagId);
   }
-  /** @protected */
   _findFosterParentingLocation() {
     for (let i = this.openElements.stackTop; i >= 0; i--) {
       const openElement = this.openElements.items[i];
@@ -74244,7 +74272,6 @@ var Parser = class {
     }
     return { parent: this.openElements.items[0], beforeElement: null };
   }
-  /** @protected */
   _fosterParentElement(element) {
     const location = this._findFosterParentingLocation();
     if (location.beforeElement) {
@@ -74254,12 +74281,10 @@ var Parser = class {
     }
   }
   //Special elements
-  /** @protected */
   _isSpecialElement(element, id) {
     const ns = this.treeAdapter.getNamespaceURI(element);
     return SPECIAL_ELEMENTS[ns].has(id);
   }
-  /** @internal */
   onCharacter(token) {
     this.skipNextNewLine = false;
     if (this.tokenizer.inForeignNode) {
@@ -74329,7 +74354,6 @@ var Parser = class {
       default:
     }
   }
-  /** @internal */
   onNullCharacter(token) {
     this.skipNextNewLine = false;
     if (this.tokenizer.inForeignNode) {
@@ -74386,7 +74410,6 @@ var Parser = class {
       default:
     }
   }
-  /** @internal */
   onComment(token) {
     this.skipNextNewLine = false;
     if (this.currentNotInHTML) {
@@ -74431,7 +74454,6 @@ var Parser = class {
       default:
     }
   }
-  /** @internal */
   onDoctype(token) {
     this.skipNextNewLine = false;
     switch (this.insertionMode) {
@@ -74453,7 +74475,6 @@ var Parser = class {
       default:
     }
   }
-  /** @internal */
   onStartTag(token) {
     this.skipNextNewLine = false;
     this.currentToken = token;
@@ -74471,7 +74492,6 @@ var Parser = class {
    * for nested calls.
    *
    * @param token The token to process.
-   * @protected
    */
   _processStartTag(token) {
     if (this.shouldProcessStartTagTokenInForeignContent(token)) {
@@ -74480,7 +74500,6 @@ var Parser = class {
       this._startTagOutsideForeignContent(token);
     }
   }
-  /** @protected */
   _startTagOutsideForeignContent(token) {
     switch (this.insertionMode) {
       case InsertionMode.INITIAL: {
@@ -74574,7 +74593,6 @@ var Parser = class {
       default:
     }
   }
-  /** @internal */
   onEndTag(token) {
     this.skipNextNewLine = false;
     this.currentToken = token;
@@ -74584,7 +74602,6 @@ var Parser = class {
       this._endTagOutsideForeignContent(token);
     }
   }
-  /** @protected */
   _endTagOutsideForeignContent(token) {
     switch (this.insertionMode) {
       case InsertionMode.INITIAL: {
@@ -74678,7 +74695,6 @@ var Parser = class {
       default:
     }
   }
-  /** @internal */
   onEof(token) {
     switch (this.insertionMode) {
       case InsertionMode.INITIAL: {
@@ -74740,7 +74756,6 @@ var Parser = class {
       default:
     }
   }
-  /** @internal */
   onWhitespaceCharacter(token) {
     if (this.skipNextNewLine) {
       this.skipNextNewLine = false;
@@ -75272,7 +75287,7 @@ function numberedHeaderStartTagInBody(p, token) {
   if (p.openElements.hasInButtonScope(TAG_ID.P)) {
     p._closePElement();
   }
-  if (NUMBERED_HEADERS.has(p.openElements.currentTagId)) {
+  if (isNumberedHeader(p.openElements.currentTagId)) {
     p.openElements.pop();
   }
   p._insertElement(token, NS.HTML);
@@ -75426,7 +75441,7 @@ function iframeStartTagInBody(p, token) {
   p.framesetOk = false;
   p._switchToTextParsing(token, TokenizerMode.RAWTEXT);
 }
-function rawTextStartTagInBody(p, token) {
+function noembedStartTagInBody(p, token) {
   p._switchToTextParsing(token, TokenizerMode.RAWTEXT);
 }
 function selectStartTagInBody(p, token) {
@@ -75529,7 +75544,6 @@ function startTagInBody(p, token) {
     case TAG_ID.DETAILS:
     case TAG_ID.ADDRESS:
     case TAG_ID.ARTICLE:
-    case TAG_ID.SEARCH:
     case TAG_ID.SECTION:
     case TAG_ID.SUMMARY:
     case TAG_ID.FIELDSET:
@@ -75653,9 +75667,8 @@ function startTagInBody(p, token) {
       optgroupStartTagInBody(p, token);
       break;
     }
-    case TAG_ID.NOEMBED:
-    case TAG_ID.NOFRAMES: {
-      rawTextStartTagInBody(p, token);
+    case TAG_ID.NOEMBED: {
+      noembedStartTagInBody(p, token);
       break;
     }
     case TAG_ID.FRAMESET: {
@@ -75668,7 +75681,7 @@ function startTagInBody(p, token) {
     }
     case TAG_ID.NOSCRIPT: {
       if (p.options.scriptingEnabled) {
-        rawTextStartTagInBody(p, token);
+        noembedStartTagInBody(p, token);
       } else {
         genericStartTagInBody(p, token);
       }
@@ -75834,7 +75847,6 @@ function endTagInBody(p, token) {
     case TAG_ID.ADDRESS:
     case TAG_ID.ARTICLE:
     case TAG_ID.DETAILS:
-    case TAG_ID.SEARCH:
     case TAG_ID.SECTION:
     case TAG_ID.SUMMARY:
     case TAG_ID.LISTING:
@@ -76403,17 +76415,6 @@ function startTagInSelect(p, token) {
       p._insertElement(token, NS.HTML);
       break;
     }
-    case TAG_ID.HR: {
-      if (p.openElements.currentTagId === TAG_ID.OPTION) {
-        p.openElements.pop();
-      }
-      if (p.openElements.currentTagId === TAG_ID.OPTGROUP) {
-        p.openElements.pop();
-      }
-      p._appendElement(token, NS.HTML);
-      token.ackSelfClosing = true;
-      break;
-    }
     case TAG_ID.INPUT:
     case TAG_ID.KEYGEN:
     case TAG_ID.TEXTAREA:
@@ -76490,7 +76491,6 @@ function endTagInSelectInTable(p, token) {
 }
 function startTagInTemplate(p, token) {
   switch (token.tagID) {
-    // First, handle tags that can start without a mode change
     case TAG_ID.BASE:
     case TAG_ID.BASEFONT:
     case TAG_ID.BGSOUND:
@@ -76504,7 +76504,6 @@ function startTagInTemplate(p, token) {
       startTagInHead(p, token);
       break;
     }
-    // Re-process the token in the appropriate mode
     case TAG_ID.CAPTION:
     case TAG_ID.COLGROUP:
     case TAG_ID.TBODY:
@@ -76776,7 +76775,9 @@ function serializeAttributes(node, { treeAdapter }) {
   let html3 = "";
   for (const attr2 of treeAdapter.getAttrList(node)) {
     html3 += " ";
-    if (attr2.namespace) {
+    if (!attr2.namespace) {
+      html3 += attr2.name;
+    } else
       switch (attr2.namespace) {
         case NS.XML: {
           html3 += `xml:${attr2.name}`;
@@ -76797,9 +76798,6 @@ function serializeAttributes(node, { treeAdapter }) {
           html3 += `${attr2.prefix}:${attr2.name}`;
         }
       }
-    } else {
-      html3 += attr2.name;
-    }
     html3 += `="${escapeAttribute(attr2.value)}"`;
   }
   return html3;
@@ -76819,7 +76817,7 @@ function serializeDocumentTypeNode(node, { treeAdapter }) {
 }
 
 // node_modules/parse5/dist/index.js
-function parse7(html3, options) {
+function parse6(html3, options) {
   return Parser.parse(html3, options);
 }
 function parseFragment(fragmentContext, html3, options) {
@@ -76834,6 +76832,9 @@ function parseFragment(fragmentContext, html3, options) {
 }
 
 // node_modules/parse5-htmlparser2-tree-adapter/dist/index.js
+function createTextNode2(value) {
+  return new Text2(value);
+}
 function enquoteDoctypeId(id) {
   const quote = id.includes('"') ? "'" : '"';
   return quote + id + quote;
@@ -76886,9 +76887,6 @@ var adapter = {
   createCommentNode(data2) {
     return new Comment2(data2);
   },
-  createTextNode(value) {
-    return new Text2(value);
-  },
   //Tree mutation
   appendChild(parentNode, newNode) {
     const prev2 = parentNode.children[parentNode.children.length - 1];
@@ -76926,9 +76924,9 @@ var adapter = {
       doctypeNode = new ProcessingInstruction("!doctype", data2);
       adapter.appendChild(document2, doctypeNode);
     }
-    doctypeNode["x-name"] = name314;
-    doctypeNode["x-publicId"] = publicId;
-    doctypeNode["x-systemId"] = systemId;
+    doctypeNode["x-name"] = name314 !== null && name314 !== void 0 ? name314 : void 0;
+    doctypeNode["x-publicId"] = publicId !== null && publicId !== void 0 ? publicId : void 0;
+    doctypeNode["x-systemId"] = systemId !== null && systemId !== void 0 ? systemId : void 0;
   },
   setDocumentMode(document2, mode) {
     document2["x-mode"] = mode;
@@ -76957,7 +76955,7 @@ var adapter = {
     if (lastChild && isText(lastChild)) {
       lastChild.data += text3;
     } else {
-      adapter.appendChild(parentNode, adapter.createTextNode(text3));
+      adapter.appendChild(parentNode, createTextNode2(text3));
     }
   },
   insertTextBefore(parentNode, text3, referenceNode) {
@@ -76965,13 +76963,13 @@ var adapter = {
     if (prevNode && isText(prevNode)) {
       prevNode.data += text3;
     } else {
-      adapter.insertBefore(parentNode, adapter.createTextNode(text3), referenceNode);
+      adapter.insertBefore(parentNode, createTextNode2(text3), referenceNode);
     }
   },
   adoptAttributes(recipient, attrs) {
     for (let i = 0; i < attrs.length; i++) {
       const attrName = attrs[i].name;
-      if (recipient.attribs[attrName] === void 0) {
+      if (typeof recipient.attribs[attrName] === "undefined") {
         recipient.attribs[attrName] = attrs[i].value;
         recipient["x-attribsNamespace"][attrName] = attrs[i].namespace;
         recipient["x-attribsPrefix"][attrName] = attrs[i].prefix;
@@ -77048,7 +77046,7 @@ function parseWithParse5(content, options, isDocument2, context) {
     treeAdapter: adapter,
     sourceCodeLocationInfo: options.sourceCodeLocationInfo
   };
-  return isDocument2 ? parse7(content, opts) : parseFragment(context, content, opts);
+  return isDocument2 ? parse6(content, opts) : parseFragment(context, content, opts);
 }
 var renderOpts = { treeAdapter: adapter };
 function renderWithParse5(dom) {
@@ -78311,8 +78309,8 @@ function parseDocument(data2, options) {
 }
 
 // node_modules/cheerio/lib/esm/index.js
-var parse8 = getParse((content, options, isDocument2, context) => options.xmlMode || options._useHtmlParser2 ? parseDocument(content, options) : parseWithParse5(content, options, isDocument2, context));
-var load = getLoad(parse8, (dom, options) => options.xmlMode || options._useHtmlParser2 ? esm_default(dom, options) : renderWithParse5(dom));
+var parse7 = getParse((content, options, isDocument2, context) => options.xmlMode || options._useHtmlParser2 ? parseDocument(content, options) : parseWithParse5(content, options, isDocument2, context));
+var load = getLoad(parse7, (dom, options) => options.xmlMode || options._useHtmlParser2 ? esm_default(dom, options) : renderWithParse5(dom));
 var esm_default2 = load([]);
 var { contains: contains2 } = static_exports;
 var { merge: merge3 } = static_exports;
@@ -81615,6 +81613,14 @@ var src_default = async (req, res) => {
   makeInstance
 });
 /*! Bundled license information:
+
+complex.js/complex.js:
+  (**
+   * @license Complex.js v2.1.1 12/05/2020
+   *
+   * Copyright (c) 2020, Robert Eisele (robert@xarg.org)
+   * Dual licensed under the MIT or GPL Version 2 licenses.
+   **)
 
 fraction.js/fraction.js:
   (**
