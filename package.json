@@ -25,7 +25,7 @@
         "@types/tape": "^5.6.4",
         "@typescript-eslint/eslint-plugin": "latest",
         "@typescript-eslint/parser": "latest",
-        "esbuild": "^0.23.0",
+        "esbuild": "latest",
         "eslint": "9.x",
         "eslint-config-prettier": "^9.1.0",
         "eslint-plugin-prettier": "^5.1.3",
