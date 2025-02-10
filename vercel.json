@@ -13,14 +13,14 @@
             "dest": "/dist/index.cjs"
         }
     ],
-    "buildCommand": "yarn build",
-    "installCommand": "yarn install",
     "headers": [
-      {
-        "source": "/(.*)",
-        "headers": [
-          { "key": "Access-Control-Allow-Origin", "value": "*" }
-        ]
-      }
-    ]
+        {
+            "source": "/(.*)",
+            "headers": [
+                { "key": "Access-Control-Allow-Origin", "value": "*" }
+            ]
+        }
+    ],
+    "buildCommand": "yarn build",
+    "installCommand": "yarn install"
 }
