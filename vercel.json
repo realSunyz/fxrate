@@ -14,5 +14,13 @@
         }
     ],
     "buildCommand": "yarn build",
-    "installCommand": "yarn install"
+    "installCommand": "yarn install",
+    "headers": [
+      {
+        "source": "/(.*)",
+        "headers": [
+          { "key": "Access-Control-Allow-Origin", "value": "*" }
+        ]
+      }
+    ]
 }
