@@ -107,9 +107,19 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                 );
 
                 response.headers.set('X-Powered-By', `fxrate/latest`);
+                response.headers.set('Content-Type', 'application/json');
                 response.headers.set(
                     'X-License',
-                    'MIT, Data copyright belongs to its source. More details at <https://github.com/186526/fxrate>.',
+                    'MIT, Data copyright belongs to its source. More details at <https://github.com/realSunyz/fxrate>.',
+                );
+                response.headers.set('X-Frame-Options', 'DENY');
+                response.headers.set(
+                    'Referrer-Policy',
+                    'no-referrer-when-downgrade',
+                );
+                response.headers.set(
+                    'Permissions-Policy',
+                    'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()',
                 );
             },
         ]),
