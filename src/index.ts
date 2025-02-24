@@ -121,6 +121,10 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                     'Permissions-Policy',
                     'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()',
                 );
+                response.headers.set(
+                    'Content-Security-Policy',
+                    "default-src 'self'; connect-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'",
+                );
             },
         ]),
     );
