@@ -107,12 +107,16 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                 );
 
                 response.headers.set('X-Powered-By', `fxrate/latest`);
-                response.headers.set('Content-Type', 'application/json');
                 response.headers.set(
                     'X-License',
                     'MIT, Data copyright belongs to its source. More details at <https://github.com/realSunyz/fxrate>.',
                 );
-                response.headers.set('X-Frame-Options', 'DENY');
+                response.headers.set('X-Frame-Options', 'deny');
+                response.headers.set('Access-Control-Allow-Origin', '*');
+                response.headers.set(
+                    'Access-Control-Allow-Methods',
+                    'GET, POST, OPTIONS',
+                );
                 response.headers.set(
                     'Referrer-Policy',
                     'no-referrer-when-downgrade',
@@ -123,7 +127,7 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                 );
                 response.headers.set(
                     'Content-Security-Policy',
-                    "default-src 'self'; connect-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'",
+                    "default-src 'self'",
                 );
             },
         ]),
