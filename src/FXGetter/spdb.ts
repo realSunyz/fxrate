@@ -1,22 +1,20 @@
 import axios from 'axios';
 
-import cheerio from 'cheerio';
-
+import { load } from 'cheerio';
 import { currency, FXRate } from 'src/types';
+import { allowPSBCCertificateforNodeJsOptions } from './psbc';
 
 const getSPDBFXRates = async (): Promise<FXRate[]> => {
-    const req = await axios.get(
-        'https://www.spdb.com.cn/was5/web/search?channelid=256931',
-        {
-            headers: {
-                'User-Agent':
-                    process.env['HEADER_USER_AGENT'] ??
-                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.3405.119',
-            },
+    const req = await axios.get('https://www.spdb.com.cn/wh_pj/index.shtml', {
+        ...allowPSBCCertificateforNodeJsOptions,
+        headers: {
+            'User-Agent':
+                process.env['HEADER_USER_AGENT'] ??
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.3405.119',
         },
-    );
+    });
 
-    const $ = cheerio.load(req.data);
+    const $ = load(req.data);
 
     const updatedTime = new Date($('.fine_title > p').text() + ' UTC+8');
 

@@ -5,7 +5,7 @@ import { parseYYYYMMDDHHmmss } from './ncb.cn';
 import https from 'https';
 import crypto from 'crypto';
 
-const allowPSBCCertificateforNodeJsOptions = {
+export const allowPSBCCertificateforNodeJsOptions = {
     httpsAgent: new https.Agent({
         // Do not vertify PSBC SSL Certificate (They do not send full certificate chain now)
         rejectUnauthorized: false,
