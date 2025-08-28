@@ -9,7 +9,7 @@ import fxmManager from './fxmManager';
 import { useBasic } from './fxmManager';
 
 import getBOCFXRatesFromBOC from './FXGetter/boc';
-import getBOCHKFxRates from './FXGetter/bochk';
+// import getBOCHKFxRates from './FXGetter/bochk';
 import getICBCFXRates from './FXGetter/icbc';
 import getCIBFXRates, { getCIBHuanyuFXRates } from './FXGetter/cib';
 import getCCBFXRates from './FXGetter/ccb';
@@ -19,15 +19,15 @@ import getPSBCFXRates from './FXGetter/psbc';
 import getCMBFXRates from './FXGetter/cmb';
 import getPBOCFXRates from './FXGetter/pboc';
 import getUnionPayFXRates from './FXGetter/unionpay';
-import getJCBFXRates from './FXGetter/jcb';
-import getWiseFXRates from './FXGetter/wise';
-import getHSBCHKFXRates from './FXGetter/hsbc.hk';
+// import getJCBFXRates from './FXGetter/jcb';
+// import getWiseFXRates from './FXGetter/wise';
+// import getHSBCHKFXRates from './FXGetter/hsbc.hk';
 import getHSBCCNFXRates from './FXGetter/hsbc.cn';
-import getHSBCAUFXRates from './FXGetter/hsbc.au';
+// import getHSBCAUFXRates from './FXGetter/hsbc.au';
 import getCITICCNFXRates from './FXGetter/citic.cn';
 import getSPDBFXRates from './FXGetter/spdb';
 import getNCBCNFXRates from './FXGetter/ncb.cn';
-import getNCBHKFXRates from './FXGetter/ncb.hk';
+// import getNCBHKFXRates from './FXGetter/ncb.hk';
 import getXIBFXRates from './FXGetter/xib';
 import getPABFXRates from './FXGetter/pab';
 import getCEBFXRates from './FXGetter/ceb';
@@ -38,7 +38,7 @@ import { RSSHandler } from './handler/rss';
 
 const Manager = new fxmManager({
     boc: getBOCFXRatesFromBOC,
-    bochk: getBOCHKFxRates,
+    // bochk: getBOCHKFxRates,
     icbc: getICBCFXRates,
     cib: getCIBFXRates,
     cibHuanyu: getCIBHuanyuFXRates,
@@ -49,13 +49,13 @@ const Manager = new fxmManager({
     cmb: getCMBFXRates,
     pboc: getPBOCFXRates,
     unionpay: getUnionPayFXRates,
-    jcb: getJCBFXRates,
-    'hsbc.hk': getHSBCHKFXRates,
+    // jcb: getJCBFXRates,
+    // 'hsbc.hk': getHSBCHKFXRates,
     'hsbc.cn': getHSBCCNFXRates,
-    'hsbc.au': getHSBCAUFXRates,
+    // 'hsbc.au': getHSBCAUFXRates,
     'citic.cn': getCITICCNFXRates,
     'ncb.cn': getNCBCNFXRates,
-    'ncb.hk': getNCBHKFXRates,
+    // 'ncb.hk': getNCBHKFXRates,
     spdb: getSPDBFXRates,
     xib: getXIBFXRates,
     pab: getPABFXRates,
@@ -65,20 +65,20 @@ const Manager = new fxmManager({
 Manager.registerFXM('mastercard', new mastercardFXM());
 Manager.registerFXM('visa', new visaFXM());
 
-if (process.env.ENABLE_WISE != '0') {
-    if (process.env.WISE_TOKEN == undefined) {
-        console.error('WISE_TOKEN is not set. Use Wise Token from web.');
-        process.env.WISE_USE_TOKEN_FROM_WEB = '1';
-    }
-    Manager.registerGetter(
-        'wise',
-        getWiseFXRates(
-            process.env.WISE_SANDBOX_API == '1',
-            process.env.WISE_USE_TOKEN_FROM_WEB != '0',
-            process.env.WISE_TOKEN,
-        ),
-    );
-}
+// if (process.env.ENABLE_WISE != '0') {
+//     if (process.env.WISE_TOKEN == undefined) {
+//         console.error('WISE_TOKEN is not set. Use Wise Token from web.');
+//         process.env.WISE_USE_TOKEN_FROM_WEB = '1';
+//     }
+//     Manager.registerGetter(
+//         'wise',
+//         getWiseFXRates(
+//             process.env.WISE_SANDBOX_API == '1',
+//             process.env.WISE_USE_TOKEN_FROM_WEB != '0',
+//             process.env.WISE_TOKEN,
+//         ),
+//     );
+// }
 
 export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
     App.binding(

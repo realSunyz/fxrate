@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { FXRate, currency } from 'src/types';
-import cheerio from 'cheerio';
+import { load } from 'cheerio';
 
 import crypto from 'crypto';
 import https from 'https';
@@ -18,12 +18,11 @@ import {
 
 /**
  * Handle this problem with Node 18
- * write EPROTO B8150000:error:0A000152:SSL routines:final_renegotiate:unsafe legacy renegotiation disabled
+ * Write EPROTO B8150000:error:0A000152:SSL routines:final_renegotiate:unsafe legacy renegotiation disabled
  **/
 const allowLegacyRenegotiationforNodeJsOptions = {
     httpsAgent: new https.Agent({
-        // allow sb CIB to use legacy renegotiation
-        // 💩 CIB
+        // Allow CIB to use legacy renegotiation
         secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT,
     }),
 };
@@ -59,7 +58,7 @@ const getCIBFXRates = async (): Promise<FXRate[]> => {
     if (res.status != 200 || resHTML.status != 200)
         throw new Error(`Get CIB FX Rates failed.`);
 
-    const $ = cheerio.load(resHTML.data);
+    const $ = load(resHTML.data);
 
     const updateTime = new Date(
         $($('.labe_text')[0])
@@ -127,12 +126,12 @@ const getCIBHuanyuFXRates = async (): Promise<FXRate[]> => {
                 originRate.sell.remit as number,
                 originRate.buy.remit as number,
             );
-            // free cash to remit conversion
+            // Free cash to remit conversion
             rate.rate.buy.cash = max(
                 originRate.buy.cash as number,
                 rate.rate.buy.remit,
             ) as number;
-            // use huanyu rate to buy remit online
+            // Use Huanyu rate to buy remit online
             rate.rate.sell.cash = min(
                 originRate.sell.cash as number,
                 rate.rate.sell.remit,

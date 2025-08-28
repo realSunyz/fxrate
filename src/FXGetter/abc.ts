@@ -7,33 +7,28 @@ import { currency, FXRate } from 'src/types';
 
 /**
  * Handle this problem with Node 18
- * write EPROTO B8150000:error:0A000152:SSL routines:final_renegotiate:unsafe legacy renegotiation disabled
+ * Write EPROTO B8150000:error:0A000152:SSL routines:final_renegotiate:unsafe legacy renegotiation disabled
  **/
 const allowLegacyRenegotiationforNodeJsOptions = {
     httpsAgent: new https.Agent({
-        // allow sb ABC to use legacy renegotiation
-        // 💩 ABC
+        // Allow ABC to use legacy renegotiation
         secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT,
     }),
 };
 
 const currencyMap = {
-    '14': { name: 'USD' as currency.USD },
-    '13': { name: 'HKD' as currency.HKD },
-    '38': { name: 'EUR' as currency.EUR },
-    '27': { name: 'JPY' as currency.JPY },
     '12': { name: 'GBP' as currency.GBP },
-    '29': { name: 'AUD' as currency.AUD },
-    '28': { name: 'CAD' as currency.CAD },
+    '13': { name: 'HKD' as currency.HKD },
+    '14': { name: 'USD' as currency.USD },
     '15': { name: 'CHF' as currency.CHF },
-    '88': { name: 'KRW' as currency.KRW },
-    '81': { name: 'MOP' as currency.MOP },
     '18': { name: 'SGD' as currency.SGD },
-    '84': { name: 'THB' as currency.THB },
+    '21': { name: 'SEK' as currency.SEK },
     '22': { name: 'DKK' as currency.DKK },
     '23': { name: 'NOK' as currency.NOK },
-    '21': { name: 'SEK' as currency.SEK },
-    '79': { name: 'TJS' as currency.TJS },
+    '27': { name: 'JPY' as currency.JPY },
+    '28': { name: 'CAD' as currency.CAD },
+    '29': { name: 'AUD' as currency.AUD },
+    '38': { name: 'EUR' as currency.EUR },
     '64': { name: 'VND' as currency.VND },
     '68': { name: 'KZT' as currency.KZT },
     '70': { name: 'RUB' as currency.RUB },
@@ -41,7 +36,11 @@ const currencyMap = {
     '73': { name: 'MNT' as currency.MNT },
     '74': { name: 'LAK' as currency.LAK },
     '78': { name: 'AED' as currency.AED },
+    '79': { name: 'TJS' as currency.TJS },
+    '81': { name: 'MOP' as currency.MOP },
+    '84': { name: 'THB' as currency.THB },
     '87': { name: 'NZD' as currency.NZD },
+    '88': { name: 'KRW' as currency.KRW },
 };
 
 const getABCFXRates = async (): Promise<FXRate[]> => {
