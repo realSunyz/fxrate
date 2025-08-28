@@ -1,7 +1,6 @@
 import fxManager from '../fxm/fxManager';
 import syncRequest from 'sync-request';
 import axios from 'axios';
-import { fraction, divide } from 'mathjs';
 
 import { LRUCache } from 'lru-cache';
 import { currency } from 'src/types';
@@ -46,7 +45,6 @@ const currenciesList: string[] = [
     'XPF',
     'CLP',
     'CNY',
-    'CNH',
     'COP',
     'KMF',
     'CDF',
@@ -167,6 +165,20 @@ const currenciesList: string[] = [
     'ZWL',
 ];
 
+const headers = {
+    'User-Agent':
+        process.env.HEADER_USER_AGENT ??
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15',
+    accept: 'application/json, text/plain, */*',
+    'accept-language': 'en-US,en;q=0.9',
+    'accept-encoding': 'gzip, deflate, br',
+    'sec-fetch-dest': 'empty',
+    'sec-fetch-mode': 'cors',
+    'sec-fetch-site': 'same-origin',
+    Referer:
+        'https://developer.mastercard.com/enhanced-currency-conversion-calculator/documentation/api-reference',
+};
+
 export default class mastercardFXM extends fxManager {
     ableToGetAllFXRate: boolean = false;
 
@@ -174,11 +186,11 @@ export default class mastercardFXM extends fxManager {
         const fxRateList: fxManager['_fxRateList'] = {} as any;
 
         currenciesList.forEach((from) => {
-            const _from = from == 'CNH' ? 'CNY' : from;
+            const _from = from;
 
             fxRateList[from] = {} as any;
             currenciesList.forEach((to) => {
-                const _to = to == 'CNH' ? 'CNY' : to;
+                const _to = to;
 
                 const currency = new Proxy(
                     {},
@@ -198,15 +210,9 @@ export default class mastercardFXM extends fxManager {
                             if (!cache.has(`${_from}${_to}`)) {
                                 const request = syncRequest(
                                     'GET',
-                                    `https://www.mastercard.co.uk/settlement/currencyrate/conversion-rate?fxDate=0000-00-00&transCurr=${_to}&crdhldBillCurr=${_from}&bankFee=0&transAmt=1`,
+                                    `https://developer.mastercard.com/apigwproxy/enhanced/settlement/currencyrate/subscribed/summary-rates?rate_date=0000-00-00&trans_curr=${_from}&trans_amt=1&crdhld_bill_curr=${_to}&bank_fee_pct=&bank_fee_fixed=`,
                                     {
-                                        headers: {
-                                            'User-Agent':
-                                                process.env[
-                                                    'HEADER_USER_AGENT'
-                                                ] ??
-                                                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.3405.119',
-                                        },
+                                        headers,
                                     },
                                 );
                                 cache.set(
@@ -215,24 +221,25 @@ export default class mastercardFXM extends fxManager {
                                 );
                             }
 
+                            const raw = cache.get(`${_from}${_to}`)!;
+                            const data = JSON.parse(raw);
+
                             if (
-                                ['cash', 'remit', 'middle'].includes(
-                                    prop.toString(),
-                                )
+                                prop.toString() === 'cash' ||
+                                prop.toString() === 'remit' ||
+                                prop.toString() === 'middle'
                             ) {
-                                const data = JSON.parse(
-                                    cache.get(`${_from}${_to}`),
-                                );
-                                return divide(
-                                    fraction(data.data.transAmt),
-                                    fraction(data.data.conversionRate),
-                                );
-                            } else {
-                                const data = JSON.parse(
-                                    cache.get(`${_from}${_to}`),
-                                );
-                                return new Date(data.data.fxDate);
+                                return data.data.mastercard
+                                    .crdhldBillAmtExclAllFees;
                             }
+
+                            if (prop.toString() === 'updated') {
+                                return new Date(
+                                    data.data.mastercard.mastercardFxRateDate,
+                                );
+                            }
+
+                            return undefined;
                         },
                     },
                 );
@@ -244,8 +251,8 @@ export default class mastercardFXM extends fxManager {
     }
 
     public async getfxRateList(from: currency, to: currency) {
-        const _from = from == 'CNH' ? 'CNY' : from;
-        const _to = to == 'CNH' ? 'CNY' : to;
+        const _from = from;
+        const _to = to;
 
         if (
             !(
@@ -261,13 +268,9 @@ export default class mastercardFXM extends fxManager {
         }
 
         const req = await axios.get(
-            `https://www.mastercard.co.uk/settlement/currencyrate/conversion-rate?fxDate=0000-00-00&transCurr=${_to}&crdhldBillCurr=${_from}&bankFee=0&transAmt=1`,
+            `https://developer.mastercard.com/apigwproxy/enhanced/settlement/currencyrate/subscribed/summary-rates?rate_date=0000-00-00&trans_curr=${_from}&trans_amt=1&crdhld_bill_curr=${_to}&bank_fee_pct=&bank_fee_fixed=`,
             {
-                headers: {
-                    'User-Agent':
-                        process.env['HEADER_USER_AGENT'] ??
-                        'fxrate axios/latest',
-                },
+                headers,
             },
         );
 
