@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { FXRate, currency } from 'src/types';
-import cheerio from 'cheerio';
+import { load } from 'cheerio';
 
 const currencyMap = {
     美元: 'USD',
@@ -60,7 +60,7 @@ const getPBOCFXRates = async (): Promise<FXRate[]> => {
         },
     );
 
-    const $ = cheerio.load(res.data);
+    const $ = load(res.data);
     const table = $('table#InfoTable').children()[0];
 
     return table.children

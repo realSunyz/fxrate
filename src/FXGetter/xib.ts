@@ -1,18 +1,8 @@
 import axios from 'axios';
+
 import { currency, FXRate } from 'src/types';
-
 import { parseYYYYMMDDHHmmss } from './ncb.cn';
-
-import crypto from 'crypto';
-import https from 'https';
-
-const allowLegacyRenegotiationforNodeJsOptions = {
-    httpsAgent: new https.Agent({
-        // allow sb ABC to use legacy renegotiation
-        // 💩 ABC
-        secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT,
-    }),
-};
+import { allowLegacyRenegotiationforNodeJsOptions } from './abc';
 
 const getXIBFXRates = async (): Promise<FXRate[]> => {
     const req = await axios.post(

@@ -239,7 +239,7 @@ export default class visaFXM extends fxManager {
                             if (!cache.has(`${_from}${_to}`)) {
                                 const request = syncRequest(
                                     'GET',
-                                    `https://usa.visa.com/cmsapi/fx/rates?amount=1&fee=0&utcConvertedDate=${dateString}&exchangedate=${dateString}&fromCurr=${_to}&toCurr=${_from}`,
+                                    `https://www.visa.com.hk/cmsapi/fx/rates?amount=1&fee=0&utcConvertedDate=${dateString}&exchangedate=${dateString}&fromCurr=${_to}&toCurr=${_from}`,
                                     {
                                         headers,
                                     },
@@ -298,7 +298,7 @@ export default class visaFXM extends fxManager {
         const dateString = dayjs().utc().format('MM/DD/YYYY');
 
         const req = await axios.get(
-            `https://usa.visa.com/cmsapi/fx/rates?amount=1&fee=0&utcConvertedDate=${dateString}&exchangedate=${dateString}&fromCurr=${_to}&toCurr=${_from}`,
+            `https://www.visa.com.hk/cmsapi/fx/rates?amount=1&fee=0&utcConvertedDate=${dateString}&exchangedate=${dateString}&fromCurr=${_to}&toCurr=${_from}`,
             {
                 headers,
             },
