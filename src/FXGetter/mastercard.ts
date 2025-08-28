@@ -201,10 +201,11 @@ export default class mastercardFXM extends fxManager {
                                     `https://www.mastercard.co.uk/settlement/currencyrate/conversion-rate?fxDate=0000-00-00&transCurr=${_to}&crdhldBillCurr=${_from}&bankFee=0&transAmt=1`,
                                     {
                                         headers: {
-                                            'user-agent':
+                                            'User-Agent':
                                                 process.env[
                                                     'HEADER_USER_AGENT'
-                                                ] ?? 'fxrate axios/latest',
+                                                ] ??
+                                                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.3405.119',
                                         },
                                     },
                                 );

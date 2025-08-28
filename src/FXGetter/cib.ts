@@ -1,9 +1,8 @@
 import axios from 'axios';
-import { FXRate, currency } from 'src/types';
-import { load } from 'cheerio';
 
-import crypto from 'crypto';
-import https from 'https';
+import { load } from 'cheerio';
+import { FXRate, currency } from 'src/types';
+import { allowLegacyRenegotiationforNodeJsOptions } from './abc';
 
 import {
     round,
@@ -16,17 +15,6 @@ import {
     Fraction,
 } from 'mathjs';
 
-/**
- * Handle this problem with Node 18
- * Write EPROTO B8150000:error:0A000152:SSL routines:final_renegotiate:unsafe legacy renegotiation disabled
- **/
-const allowLegacyRenegotiationforNodeJsOptions = {
-    httpsAgent: new https.Agent({
-        // Allow CIB to use legacy renegotiation
-        secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT,
-    }),
-};
-
 const getCIBFXRates = async (): Promise<FXRate[]> => {
     const resHTML = await axios.get(
         'https://personalbank.cib.com.cn/pers/main/pubinfo/ifxQuotationQuery.do',
@@ -34,7 +22,8 @@ const getCIBFXRates = async (): Promise<FXRate[]> => {
             ...allowLegacyRenegotiationforNodeJsOptions,
             headers: {
                 'User-Agent':
-                    process.env['HEADER_USER_AGENT'] ?? 'fxrate axios/latest',
+                    process.env['HEADER_USER_AGENT'] ??
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.3405.119',
             },
         },
     );

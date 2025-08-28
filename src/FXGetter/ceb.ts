@@ -1,21 +1,8 @@
-import { FXRate, currency } from 'src/types';
 import axios from 'axios';
 import cheerio from 'cheerio';
 
-import crypto from 'crypto';
-import https from 'https';
-
-/**
- * Handle this problem with Node 18
- * write EPROTO B8150000:error:0A000152:SSL routines:final_renegotiate:unsafe legacy renegotiation disabled
- **/
-const allowLegacyRenegotiationforNodeJsOptions = {
-    httpsAgent: new https.Agent({
-        // allow sb CIB to use legacy renegotiation
-        // 💩 CIB
-        secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT,
-    }),
-};
+import { FXRate, currency } from 'src/types';
+import { allowLegacyRenegotiationforNodeJsOptions } from './abc';
 
 export const enName: Record<string, currency> = {
     '美元(USD)': 'USD' as currency.USD,

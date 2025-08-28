@@ -1,23 +1,8 @@
 import axios from 'axios';
 
-import crypto from 'crypto';
-import https from 'https';
-
-import cheerio from 'cheerio';
-
+import { load } from 'cheerio';
 import { currency, FXRate } from 'src/types';
-
-/**
- * Handle this problem with Node 18
- * write EPROTO B8150000:error:0A000152:SSL routines:final_renegotiate:unsafe legacy renegotiation disabled
- **/
-const allowLegacyRenegotiationforNodeJsOptions = {
-    httpsAgent: new https.Agent({
-        // allow sb ABC to use legacy renegotiation
-        // 💩 ABC
-        secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT,
-    }),
-};
+import { allowLegacyRenegotiationforNodeJsOptions } from './abc';
 
 const getBOCOMFXRates = async (): Promise<FXRate[]> => {
     const req = await axios.get(
@@ -26,13 +11,14 @@ const getBOCOMFXRates = async (): Promise<FXRate[]> => {
             ...allowLegacyRenegotiationforNodeJsOptions,
             headers: {
                 'User-Agent':
-                    process.env['HEADER_USER_AGENT'] ?? 'fxrate axios/latest',
+                    process.env['HEADER_USER_AGENT'] ??
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.3405.119',
             },
         },
     );
 
     const data = req.data['RSP_BODY'].fileContent;
-    const $ = cheerio.load(
+    const $ = load(
         '<table><tbody><tr class="bgcolorTable" tabindex="0">' +
             data +
             '</tr></tbody></table>',

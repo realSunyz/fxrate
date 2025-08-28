@@ -9,7 +9,7 @@ import { currency, FXRate } from 'src/types';
  * Handle this problem with Node 18
  * Write EPROTO B8150000:error:0A000152:SSL routines:final_renegotiate:unsafe legacy renegotiation disabled
  **/
-const allowLegacyRenegotiationforNodeJsOptions = {
+export const allowLegacyRenegotiationforNodeJsOptions = {
     httpsAgent: new https.Agent({
         // Allow ABC to use legacy renegotiation
         secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT,
@@ -50,7 +50,8 @@ const getABCFXRates = async (): Promise<FXRate[]> => {
             ...allowLegacyRenegotiationforNodeJsOptions,
             headers: {
                 'User-Agent':
-                    process.env['HEADER_USER_AGENT'] ?? 'fxrate axios/latest',
+                    process.env['HEADER_USER_AGENT'] ??
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.3405.119',
             },
         },
     );

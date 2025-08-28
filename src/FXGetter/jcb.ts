@@ -6,7 +6,8 @@ const getJCBJPYBasedFXRates = async (): Promise<FXRate[]> => {
     const res = await axios.get('https://www.jcb.jp/rate/jpy.html', {
         headers: {
             'User-Agent':
-                process.env['HEADER_USER_AGENT'] ?? 'fxrate axios/latest',
+                process.env['HEADER_USER_AGENT'] ??
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.3405.119',
         },
     });
 
