@@ -28,7 +28,8 @@ jobs:
       - name: Log in to the Container registry
         uses: docker/login-action@v3
         with:
-          registry: sjc.vultrcr.com/seven
+          # For Docker login, use only the registry hostname
+          registry: sjc.vultrcr.com
           username: ${{ secrets.USERNAME }}
           password: ${{ secrets.PASSWORD }}
       # This step uses [docker/metadata-action](https://github.com/docker/metadata-action#about) to extract tags and labels that will be applied to the specified image. The `id` "meta" allows the output of this step to be referenced in a subsequent step. The `images` value provides the base name for the tags and labels.
@@ -51,11 +52,36 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Let actions/attest-build-provenance or cosign handle provenance
+          provenance: false
 
       # This step generates an artifact attestation for the image, which is an unforgeable statement about where and how it was built. It increases supply chain security for people who consume the image. For more information, see "[AUTOTITLE](/actions/security-guides/using-artifact-attestations-to-establish-provenance-for-builds)."
-      - name: Generate artifact attestation
+      - name: Generate artifact attestation (OCI referrers)
+        id: attest
         uses: actions/attest-build-provenance@v1
+        continue-on-error: true
         with:
           subject-name: sjc.vultrcr.com/seven/fxrate
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
+
+      # Fallback: if registry does not support OCI referrers, push SLSA attestation via cosign
+      - name: Install cosign
+        if: steps.attest.outcome == 'failure'
+        uses: sigstore/cosign-installer@v3
+
+      - name: Push SLSA attestation with cosign (keyless default)
+        if: steps.attest.outcome == 'failure'
+        env:
+          COSIGN_YES: "true"
+        run: |
+          cat > predicate.json <<'JSON'
+          { "buildType": "https://slsa.dev/container/v1",
+            "builder": { "id": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" },
+            "invocation": { "configSource": { "entryPoint": ".github/workflows/cd.yml" } }
+          }
+          JSON
+          cosign attest \
+            --predicate predicate.json \
+            --type slsaprovenance \
+            sjc.vultrcr.com/seven/fxrate@${{ steps.push.outputs.digest }}

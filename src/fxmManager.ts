@@ -293,8 +293,10 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
 
         const supported = supportedCurrenciesList[source];
         if (supported && supported.length) {
-            fxRates = fxRates.filter((f) =>
-                supported.includes(f.currency.from as unknown as any),
+            fxRates = fxRates.filter(
+                (f) =>
+                    supported.includes(f.currency.from as unknown as any) ||
+                    supported.includes(f.currency.to as unknown as any),
             );
         }
 
