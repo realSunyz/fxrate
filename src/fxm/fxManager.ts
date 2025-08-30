@@ -12,6 +12,7 @@ type FXRateType = {
     remit: Fraction;
     middle: Fraction;
     updated: Date;
+    provided: boolean;
 };
 
 export default class fxManager {
@@ -59,6 +60,20 @@ export default class fxManager {
         this._fxRateList = value;
     }
 
+    public ensureCurrencyNode(cur: currency): void {
+        if (!this.fxRateList[cur]) {
+            this.fxRateList[cur] = {
+                [cur]: {
+                    cash: fraction(1),
+                    remit: fraction(1),
+                    middle: fraction(1),
+                    updated: new Date(`1970-1-1 00:00:00 UTC`),
+                    provided: true,
+                },
+            } as any;
+        }
+    }
+
     public async getfxRateList(
         from: currency,
         to: currency,
@@ -74,9 +89,13 @@ export default class fxManager {
             remit: Fraction;
             middle: Fraction;
             updated: Date;
+            provided?: boolean;
         },
     ) {
-        this.fxRateList[from][to] = value;
+        this.fxRateList[from][to] = {
+            ...value,
+            provided: value.provided ?? true,
+        } as FXRateType;
     }
 
     ableToGetAllFXRate: boolean = true;
@@ -162,12 +181,14 @@ export default class fxManager {
                     remit: fraction(1),
                     middle: fraction(1),
                     updated: new Date(`1970-1-1 00:00:00 UTC`),
+                    provided: true,
                 },
             };
         }
         this.fxRateList[from][to] = {
             middle: divide(fraction(rate.middle), unit),
             updated: FXRate.updated,
+            provided: true,
         };
         if (!this.fxRateList[to]) {
             this.fxRateList[to] = {
@@ -176,12 +197,14 @@ export default class fxManager {
                     remit: fraction(1),
                     middle: fraction(1),
                     updated: new Date(`1970-1-1 00:00:00 UTC`),
+                    provided: true,
                 },
             };
         }
         this.fxRateList[to][from] = {
             middle: divide(unit, fraction(rate.middle)),
             updated: FXRate.updated,
+            provided: true,
         };
 
         if (rate.buy.cash) {

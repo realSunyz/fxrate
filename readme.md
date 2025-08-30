@@ -12,7 +12,7 @@ Web UI: [186526/fxrate-web](https://github.com/186526/fxrate-web) (Still work in
 
 ### Rest API v1 Usage
 
--   `GET (/v1)/info` - show instance's details.
+- `GET (/v1)/info` - show instance's details.
 
 ```typescript
 type source = string;
@@ -28,7 +28,7 @@ interface result {
 export default result;
 ```
 
--   `GET (/v1)/:source/` - show source's details.
+- `GET (/v1)/:source/` - show source's details.
 
 ```typescript
 enum currency {
@@ -48,7 +48,7 @@ interface result {
 export default result;
 ```
 
--   `GET (/v1)/:source/:from(?reverse&precision&amount&fees)` - show currency's FX rates to other currency in source's db.
+- `GET (/v1)/:source/:from(?reverse&precision&amount&fees)` - show currency's FX rates to other currency in source's db.
 
 ```typescript
 // query use ?reverse means calculating how much currency is needed to obtain the $amount $from currency is needed.
@@ -71,7 +71,7 @@ interface result {
 return result;
 ```
 
--   `GET (/v1)/:source/:from/:to(?reverse&precision&amount&fees)` - show currency's FX rates to other currency in source's db.
+- `GET (/v1)/:source/:from/:to(?reverse&precision&amount&fees)` - show currency's FX rates to other currency in source's db.
 
 ```typescript
 type result = FXRate;
@@ -79,7 +79,7 @@ type result = FXRate;
 export default result;
 ```
 
--   `GET (/v1)/:source/:from/:to/:type(/:amount)(?reverse&precision&amount&fees)` - show currency's FX rates to other currency in source's db.
+- `GET (/v1)/:source/:from/:to/:type(/:amount)(?reverse&precision&amount&fees)` - show currency's FX rates to other currency in source's db.
 
 ```typescript
 type result = FXRate;
@@ -91,12 +91,12 @@ export default result[type];
 
 Endpoint `(/v1)/jsonrpc/v2`
 
--   `instanceInfo`
+- `instanceInfo`
 
     Params: `undefined`  
-    Response: Follow `GET (/v1)/info`
+     Response: Follow `GET (/v1)/info`
 
--   `listCurrencies`
+- `listCurrencies`
 
     Params:
 
@@ -108,7 +108,7 @@ Endpoint `(/v1)/jsonrpc/v2`
 
     Response: Follow `GET (/v1)/:source/`
 
--   `listFXRates`
+- `listFXRates`
 
     Params:
 
@@ -125,7 +125,7 @@ Endpoint `(/v1)/jsonrpc/v2`
 
     Response: Follow `GET (/v1)/:source/:from(?reverse&precision&amount&fees)`
 
--   `getFXRates`
+- `getFXRates`
 
     Params:
 

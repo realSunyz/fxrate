@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { XMLParser } from 'fast-xml-parser';
 import { FXRate, currency } from '../types';
-import cheerio from 'cheerio';
+import { load } from 'cheerio';
 
 const parser = new XMLParser();
 
@@ -106,7 +106,7 @@ const getBOCFXRatesFromBOC = async (): Promise<FXRate[]> => {
                     },
                 },
             );
-            const $ = cheerio.load(res.data);
+            const $ = load(res.data);
             // Thanks to RSSHub for the code to get BOC's FX Rate
             return Array.from(
                 new Set(

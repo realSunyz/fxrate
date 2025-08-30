@@ -202,6 +202,7 @@ export default class mastercardFXM extends fxManager {
                                     'remit',
                                     'middle',
                                     'updated',
+                                    'provided',
                                 ].includes(prop.toString())
                             ) {
                                 return undefined;
@@ -237,6 +238,10 @@ export default class mastercardFXM extends fxManager {
                                 return new Date(
                                     data.data.mastercard.mastercardFxRateDate,
                                 );
+                            }
+
+                            if (prop.toString() === 'provided') {
+                                return true;
                             }
 
                             return undefined;

@@ -1,6 +1,7 @@
 import { router, response, request, handler, interfaces } from 'handlers.js';
 import fxManager from './fxm/fxManager';
-import { FXRate, JSONRPCMethods, currency } from './types';
+import { FXRate, JSONRPCMethods, currency } from 'src/types';
+import { supportedCurrenciesList } from './constant';
 
 import { round, multiply, Fraction } from 'mathjs';
 
@@ -54,16 +55,27 @@ const sortObject = (obj: unknown): any => {
     if (obj instanceof Array) {
         return obj.sort();
     }
-    if (typeof obj !== 'object') {
+    if (obj === null || typeof obj !== 'object') {
         return obj;
     }
-    const keys = Object.keys(obj).sort(),
-        sortedObj = {};
 
-    for (const key of keys) {
-        sortedObj[key] = sortObject(obj[key]);
+    const fxOrder = ['cash', 'remit', 'middle', 'provided', 'updated'];
+    const keys = Object.keys(obj as any);
+
+    if (keys.some((k) => fxOrder.includes(k))) {
+        const ordered: any = {};
+        for (const k of fxOrder) {
+            if (k in (obj as any)) ordered[k] = sortObject((obj as any)[k]);
+        }
+        const rest = keys.filter((k) => !fxOrder.includes(k)).sort();
+        for (const k of rest) ordered[k] = sortObject((obj as any)[k]);
+        return ordered;
     }
 
+    const sortedObj: any = {};
+    for (const key of keys.sort()) {
+        sortedObj[key] = sortObject((obj as any)[key]);
+    }
     return sortedObj;
 };
 
@@ -94,6 +106,16 @@ const getConvert = async (
     amount: number = 100,
     fees: number = 0,
 ) => {
+    const provided = Boolean(
+        (await fxManager.fxRateList[from]) &&
+            (await fxManager.fxRateList[from][to]) &&
+            (await fxManager.fxRateList[from][to]).provided === true,
+    );
+
+    if (!provided) {
+        return 0;
+    }
+
     let answer = await fxManager.convert(
         from,
         to,
@@ -118,15 +140,39 @@ const getDetails = async (
     fxManager: fxManager,
     request: request<any>,
 ) => {
-    const result = {
-        updated: (await fxManager.getUpdatedDate(from, to)).toUTCString(),
-    };
+    const provided = Boolean(
+        (await fxManager.fxRateList[from]) &&
+            (await fxManager.fxRateList[from][to]) &&
+            (await fxManager.fxRateList[from][to]).provided === true,
+    );
+
+    const result: any = {};
+
+    if (!provided) {
+        result.cash = 0;
+        result.remit = 0;
+        result.middle = 0;
+        result.provided = false;
+        result.updated = 'Thu, Jan 01 1970 00:00:00 GMT';
+        return result;
+    }
+
     for (const type of ['cash', 'remit', 'middle']) {
         try {
             result[type] = await getConvert(from, to, type, fxManager, request);
         } catch (_e) {
             result[type] = false;
         }
+    }
+
+    result.provided = true;
+
+    try {
+        result.updated = (
+            await fxManager.getUpdatedDate(from, to)
+        ).toUTCString();
+    } catch (_e) {
+        result.updated = false;
     }
     return result;
 };
@@ -151,16 +197,14 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
     protected rpcHandlers = {
         instanceInfo: () => useInternalRestAPI('info', this),
 
-        listCurrencies: ({ source }) => {
+        listCurrencies: async ({ source }) => {
             if (!source) throw new Error('source is required.');
 
-            return useInternalRestAPI(`${source}/`, this).then(
-                (k) =>
-                    new Object({
-                        currency: k.currency,
-                        date: k.date,
-                    }),
-            );
+            const k = await useInternalRestAPI(`${source}/`, this);
+            return new Object({
+                currency: k.currency,
+                date: k.date,
+            });
         },
 
         listFXRates: ({
@@ -245,8 +289,17 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
             throw new Error('Source not found');
         }
         this.log(`${source} is updating...`);
-        const fxRates = await this.fxRateGetter[source](this);
+        let fxRates = await this.fxRateGetter[source](this);
+
+        const supported = supportedCurrenciesList[source];
+        if (supported && supported.length) {
+            fxRates = fxRates.filter((f) =>
+                supported.includes(f.currency.from as unknown as any),
+            );
+        }
+
         fxRates.forEach((f) => this.fxms[source].update(f));
+
         this.fxmStatus[source] = 'ready';
         this.intervalIDs[source].refreshDate = new Date();
         this.log(`${source} is updated, now is ready.`);
@@ -395,17 +448,25 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
             );
             response.body = JSON.stringify(result);
             useJson(response, request);
-            response.headers.set(
-                'Date',
-                (
-                    await (
-                        await this.requestFXManager(source)
-                    ).getUpdatedDate(
-                        from as unknown as currency,
-                        to as unknown as currency,
-                    )
-                ).toUTCString(),
-            );
+            try {
+                if (result.provided === true) {
+                    response.headers.set(
+                        'Date',
+                        (
+                            await (
+                                await this.requestFXManager(source)
+                            ).getUpdatedDate(
+                                from as unknown as currency,
+                                to as unknown as currency,
+                            )
+                        ).toUTCString(),
+                    );
+                } else {
+                    response.headers.set('Date', new Date().toUTCString());
+                }
+            } catch (_e) {
+                response.headers.set('Date', new Date().toUTCString());
+            }
             useCache(response);
 
             return response;
@@ -432,17 +493,31 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
             );
             response.body = result.toString();
             useBasic(response);
-            response.headers.set(
-                'Date',
-                (
-                    await (
-                        await this.requestFXManager(source)
-                    ).getUpdatedDate(
-                        from as unknown as currency.unknown,
-                        to as unknown as currency.unknown,
-                    )
-                ).toUTCString(),
-            );
+            try {
+                const details = await getDetails(
+                    from as unknown as currency,
+                    to as unknown as currency,
+                    await this.requestFXManager(source),
+                    request,
+                );
+                if (details.provided === true) {
+                    response.headers.set(
+                        'Date',
+                        (
+                            await (
+                                await this.requestFXManager(source)
+                            ).getUpdatedDate(
+                                from as unknown as currency.unknown,
+                                to as unknown as currency.unknown,
+                            )
+                        ).toUTCString(),
+                    );
+                } else {
+                    response.headers.set('Date', new Date().toUTCString());
+                }
+            } catch (_e) {
+                response.headers.set('Date', new Date().toUTCString());
+            }
             useCache(response);
 
             return response;

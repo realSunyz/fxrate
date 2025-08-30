@@ -227,6 +227,7 @@ export default class visaFXM extends fxManager {
                                     'remit',
                                     'middle',
                                     'updated',
+                                    'provided',
                                 ].includes(prop.toString())
                             ) {
                                 return undefined;
@@ -259,7 +260,7 @@ export default class visaFXM extends fxManager {
                                     cache.get(`${_from}${_to}`),
                                 );
                                 return fraction(data.originalValues.fxRateVisa);
-                            } else {
+                            } else if (prop.toString() === 'updated') {
                                 const data = JSON.parse(
                                     cache.get(`${_from}${_to}`),
                                 );
@@ -267,6 +268,8 @@ export default class visaFXM extends fxManager {
                                     data.originalValues.lastUpdatedVisaRate *
                                         1000,
                                 );
+                            } else if (prop.toString() === 'provided') {
+                                return true;
                             }
                         },
                     },
