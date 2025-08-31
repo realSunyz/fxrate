@@ -1,4 +1,5 @@
 import fxManager from '../fxm/fxManager';
+import syncRequest from 'sync-request';
 import axios from 'axios';
 
 import { fraction } from 'mathjs';
@@ -232,23 +233,37 @@ export default class visaFXM extends fxManager {
                                 return undefined;
                             }
 
-                            // Do not perform network in getter; rely on cache only.
-                            // Network fetch is handled in getfxRateList/getUpdatedDate.
+                            const dateString = dayjs()
+                                .utc()
+                                .format('MM/DD/YYYY');
+
+                            if (!cache.has(`${_from}${_to}`)) {
+                                const request = syncRequest(
+                                    'GET',
+                                    `https://www.visa.com.hk/cmsapi/fx/rates?amount=1&fee=0&utcConvertedDate=${dateString}&exchangedate=${dateString}&fromCurr=${_to}&toCurr=${_from}`,
+                                    {
+                                        headers,
+                                    },
+                                );
+                                cache.set(
+                                    `${_from}${_to}`,
+                                    request.getBody().toString(),
+                                );
+                            }
 
                             if (
                                 ['cash', 'remit', 'middle'].includes(
                                     prop.toString(),
                                 )
                             ) {
-                                const cached = cache.get(`${_from}${_to}`);
-                                if (!cached) return undefined;
-                                const data = JSON.parse(cached);
+                                const data = JSON.parse(
+                                    cache.get(`${_from}${_to}`),
+                                );
                                 return fraction(data.originalValues.fxRateVisa);
                             } else if (prop.toString() === 'updated') {
-                                const cached = cache.get(`${_from}${_to}`);
-                                if (!cached)
-                                    return new Date(`1970-01-01T00:00:00Z`);
-                                const data = JSON.parse(cached);
+                                const data = JSON.parse(
+                                    cache.get(`${_from}${_to}`),
+                                );
                                 return new Date(
                                     data.originalValues.lastUpdatedVisaRate *
                                         1000,
@@ -304,20 +319,5 @@ export default class visaFXM extends fxManager {
 
     public update(): void {
         throw new Error('Method is deprecated');
-    }
-
-    public async getUpdatedDate(from: currency, to: currency): Promise<Date> {
-        const _from = from == 'CNH' ? 'CNY' : from;
-        const _to = to == 'CNH' ? 'CNY' : to;
-        if (!cache.has(`${_from}${_to}`)) {
-            await this.getfxRateList(from, to);
-        }
-        const cached = cache.get(`${_from}${_to}`);
-        if (!cached)
-            throw new Error(
-                'FX Path from ' + from + ' to ' + to + ' not found',
-            );
-        const data = JSON.parse(cached);
-        return new Date(data.originalValues.lastUpdatedVisaRate * 1000);
     }
 }
