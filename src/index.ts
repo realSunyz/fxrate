@@ -1,5 +1,6 @@
 import process from 'node:process';
 import http from 'node:http';
+import axios from 'axios';
 
 import esMain from 'es-main';
 
@@ -34,7 +35,7 @@ import getPABFXRates from './FXGetter/pab';
 
 import mastercardFXM from './FXGetter/mastercard';
 import visaFXM from './FXGetter/visa';
-import { RSSHandler } from './handler/rss';
+// import { RSSHandler } from './handler/rss';
 
 const Manager = new fxmManager({
     boc: getBOCFXRatesFromBOC,
@@ -129,15 +130,92 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                     'Content-Security-Policy',
                     "default-src 'self'",
                 );
+
+                try {
+                    const secret = process.env.TURNSTILE_SECRET;
+                    const token = request.query.get('token');
+
+                    if (token)
+                        response.headers.set(
+                            'X-Turnstile-Token-Present',
+                            'true',
+                        );
+                    if (!secret)
+                        response.headers.set(
+                            'X-Turnstile-Validation',
+                            'skipped-missing-secret',
+                        );
+
+                    if (token && secret) {
+                        const form = new URLSearchParams();
+                        form.set('secret', secret);
+                        form.set('response', token);
+                        if (request.ip) form.set('remoteip', request.ip);
+
+                        const verify = await axios
+                            .post(
+                                'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+                                form,
+                                {
+                                    headers: {
+                                        'Content-Type':
+                                            'application/x-www-form-urlencoded',
+                                        'User-Agent': 'fxrate/turnstile-verify',
+                                    },
+                                    timeout: 5000,
+                                },
+                            )
+                            .then((r) => r.data)
+                            .catch((e) => ({
+                                success: false,
+                                error: e?.message ?? 'request_error',
+                            }));
+
+                        (request as any).custom = (request as any).custom || {};
+                        (request as any).custom.turnstile = verify;
+
+                        if (verify?.success === true) {
+                            response.headers.set(
+                                'X-Turnstile-Validation',
+                                'passed',
+                            );
+                            if (verify?.challenge_ts)
+                                response.headers.set(
+                                    'X-Turnstile-Challenge-TS',
+                                    String(verify.challenge_ts),
+                                );
+                            if (verify?.hostname)
+                                response.headers.set(
+                                    'X-Turnstile-Hostname',
+                                    String(verify.hostname),
+                                );
+                            if (verify?.action)
+                                response.headers.set(
+                                    'X-Turnstile-Action',
+                                    String(verify.action),
+                                );
+                        } else {
+                            response.headers.set(
+                                'X-Turnstile-Validation',
+                                'failed',
+                            );
+                            if (verify?.['error-codes']) {
+                                response.headers.set(
+                                    'X-Turnstile-Error-Codes',
+                                    String(verify['error-codes']),
+                                );
+                            }
+                        }
+                    }
+                } catch (_e) {
+                    void 0;
+                }
             },
         ]),
     );
 
     App.use([Manager], '/(.*)');
     App.use([Manager], '/v1/(.*)');
-
-    const rssFeeder = new RSSHandler(Manager);
-    App.use([rssFeeder], '/rss/(.*)');
 
     return App;
 };

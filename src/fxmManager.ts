@@ -31,17 +31,19 @@ export const useBasic = (response: response<any>): void => {
 };
 
 export const useInternalRestAPI = async (url: string, router: router) => {
-    const restResponse = await router
-        .respond(
-            new request(
-                'GET',
-                new URL(`http://this.internal/${url}`),
-                new interfaces.headers({}),
-                '',
-                {},
-            ),
-        )
-        .catch((e) => e);
+    const u = new URL(`http://this.internal/${url}`);
+    if (!u.searchParams.has('token'))
+        u.searchParams.set('token', '__internal__');
+
+    const req = new request(
+        'GET',
+        u,
+        new interfaces.headers({}),
+        '',
+        {},
+    ).extends({ turnstile: { success: true } });
+
+    const restResponse = await router.respond(req).catch((e) => e);
 
     try {
         return JSON.parse(restResponse.body);
@@ -257,17 +259,66 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
             '/info',
             this.create('GET', async (request: request<any>) => {
                 const rep = new response<any>('', 200);
+
+                const valid =
+                    Boolean(request.query.get('token')) &&
+                    (request as any)?.custom?.turnstile?.success === true;
+                if (!valid) {
+                    rep.status = 403;
+                    rep.body = JSON.stringify({
+                        success: false,
+                        error: 'Invalid Token',
+                        cash: 0,
+                        remit: 0,
+                        middle: 0,
+                        provided: false,
+                        updated: new Date().toUTCString(),
+                    });
+                    useJson(rep, request);
+                    return rep;
+                }
+
                 rep.body = JSON.stringify({
                     status: 'ok',
                     sources: Object.keys(this.fxms),
                     version: `fxrate@${globalThis.GITBUILD || 'git'} ${globalThis.BUILDTIME || 'devlopment'}`,
                     apiVersion: 'v1',
                     environment: process.env.NODE_ENV || 'development',
+                    success: true,
+                    error: '',
                 });
                 useJson(rep, request);
                 return rep;
             }),
         );
+
+        const enforceToken = async (
+            request: request<any>,
+            response: response<any>,
+        ) => {
+            const valid =
+                Boolean(request.query.get('token')) &&
+                (request as any)?.custom?.turnstile?.success === true;
+            if (!valid) {
+                response.status = 403;
+                response.body = JSON.stringify({
+                    success: false,
+                    error: 'Invalid Token',
+                    cash: 0,
+                    remit: 0,
+                    middle: 0,
+                    provided: false,
+                    updated: new Date().toUTCString(),
+                });
+                useJson(response, request);
+                throw response;
+            }
+            return response;
+        };
+
+        this.binding('/jsonrpc', new handler('ANY', [enforceToken]));
+        this.binding('/jsonrpc/(.*)', new handler('ANY', [enforceToken]));
+        this.binding('/jsonrpc/v2(.*)', new handler('ANY', [enforceToken]));
 
         this.enableList().mount();
         this.log('JSONRPC is mounted.');
@@ -371,10 +422,53 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
             );
         };
 
+        const isTurnstileValid = (request: request<any>) => {
+            const token = request.query.get('token');
+            const ver = (request as any)?.custom?.turnstile;
+            return Boolean(token) && ver?.success === true;
+        };
+
+        const invalidTokenPairResponse = async (
+            _from: string,
+            _to: string,
+            request: request<any>,
+            response: response<any>,
+        ) => {
+            const body = {
+                success: false,
+                error: 'Invalid Token',
+                cash: 0,
+                remit: 0,
+                middle: 0,
+                provided: false,
+                updated: new Date().toUTCString(),
+            } as any;
+            response.status = 403;
+            response.body = JSON.stringify(body);
+            useJson(response, request);
+            response.headers.set('Date', new Date().toUTCString());
+            return response;
+        };
+
         const handlerSourceInfo = async (
             request: request<any>,
             response: response<any>,
         ) => {
+            if (!isTurnstileValid(request)) {
+                response.status = 403;
+                response.body = JSON.stringify({
+                    success: false,
+                    error: 'Invalid Token',
+                    cash: 0,
+                    remit: 0,
+                    middle: 0,
+                    provided: false,
+                    updated: new Date().toUTCString(),
+                });
+                useJson(response, request);
+                useCache(response);
+                throw response;
+            }
             if (request.params[0] && request.params[0] != source) {
                 return response;
             }
@@ -385,6 +479,8 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
                     (await this.requestFXManager(source)).fxRateList,
                 ).sort(),
                 date: new Date().toUTCString(),
+                success: true,
+                error: '',
             });
             useJson(response, request);
             useCache(response);
@@ -395,6 +491,21 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
             request: request<any>,
             response: response<any>,
         ) => {
+            if (!isTurnstileValid(request)) {
+                response.status = 403;
+                response.body = JSON.stringify({
+                    success: false,
+                    error: 'Invalid Token',
+                    cash: 0,
+                    remit: 0,
+                    middle: 0,
+                    provided: false,
+                    updated: new Date().toUTCString(),
+                });
+                useJson(response, request);
+                useCache(response);
+                return response;
+            }
             if (request.params.from)
                 request.params.from = request.params.from.toUpperCase();
 
@@ -425,6 +536,8 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
                     request,
                 );
             }
+            (result as any).success = true;
+            (result as any).error = '';
             response.body = JSON.stringify(result);
             useJson(response, request);
             useCache(response);
@@ -442,12 +555,17 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
                 request.params.to = request.params.to.toUpperCase();
 
             const { from, to } = request.params;
+            if (!isTurnstileValid(request)) {
+                return invalidTokenPairResponse(from, to, request, response);
+            }
             const result = await getDetails(
                 from as unknown as currency,
                 to as unknown as currency,
                 await this.requestFXManager(source),
                 request,
             );
+            (result as any).success = true;
+            (result as any).error = '';
             response.body = JSON.stringify(result);
             useJson(response, request);
             try {
@@ -484,17 +602,77 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
             if (request.params.to)
                 request.params.to = request.params.to.toUpperCase();
 
-            const { from, to, type, amount } = request.params;
-            const result = await getConvert(
-                from as unknown as currency,
-                to as unknown as currency,
-                type,
-                await this.requestFXManager(source),
-                request,
-                Number(amount),
+            const { from, to, amount } = request.params;
+            if (!isTurnstileValid(request)) {
+                return invalidTokenPairResponse(from, to, request, response);
+            }
+            const details: any = {};
+            try {
+                details.cash = await getConvert(
+                    from as unknown as currency,
+                    to as unknown as currency,
+                    'cash',
+                    await this.requestFXManager(source),
+                    request,
+                    Number(amount),
+                );
+            } catch (_e) {
+                details.cash = false;
+            }
+
+            try {
+                details.remit = await getConvert(
+                    from as unknown as currency,
+                    to as unknown as currency,
+                    'remit',
+                    await this.requestFXManager(source),
+                    request,
+                    Number(amount),
+                );
+            } catch (_e) {
+                details.remit = false;
+            }
+
+            try {
+                details.middle = await getConvert(
+                    from as unknown as currency,
+                    to as unknown as currency,
+                    'middle',
+                    await this.requestFXManager(source),
+                    request,
+                    Number(amount),
+                );
+            } catch (_e) {
+                details.middle = false;
+            }
+
+            details.provided = Boolean(
+                (await this.requestFXManager(source)).fxRateList[from] &&
+                    (await this.requestFXManager(source)).fxRateList[from][
+                        to
+                    ] &&
+                    (await this.requestFXManager(source)).fxRateList[from][to]
+                        .provided === true,
             );
-            response.body = result.toString();
-            useBasic(response);
+
+            try {
+                details.updated = (
+                    await (
+                        await this.requestFXManager(source)
+                    ).getUpdatedDate(
+                        from as unknown as currency,
+                        to as unknown as currency,
+                    )
+                ).toUTCString();
+            } catch (_e) {
+                details.updated = false;
+            }
+
+            details.success = true;
+            details.error = '';
+
+            response.body = JSON.stringify(details);
+            useJson(response, request);
             try {
                 const details = await getDetails(
                     from as unknown as currency,
