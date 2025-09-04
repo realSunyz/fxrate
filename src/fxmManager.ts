@@ -261,7 +261,6 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
                 const rep = new response<any>('', 200);
 
                 const valid =
-                    Boolean(request.query.get('token')) &&
                     (request as any)?.custom?.turnstile?.success === true;
                 if (!valid) {
                     rep.status = 403;
@@ -296,9 +295,7 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
             request: request<any>,
             response: response<any>,
         ) => {
-            const valid =
-                Boolean(request.query.get('token')) &&
-                (request as any)?.custom?.turnstile?.success === true;
+            const valid = (request as any)?.custom?.turnstile?.success === true;
             if (!valid) {
                 response.status = 403;
                 response.body = JSON.stringify({
@@ -423,9 +420,8 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
         };
 
         const isTurnstileValid = (request: request<any>) => {
-            const token = request.query.get('token');
             const ver = (request as any)?.custom?.turnstile;
-            return Boolean(token) && ver?.success === true;
+            return ver?.success === true;
         };
 
         const invalidTokenPairResponse = async (

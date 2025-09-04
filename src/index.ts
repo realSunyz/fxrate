@@ -1,6 +1,7 @@
 import process from 'node:process';
 import http from 'node:http';
 import axios from 'axios';
+import crypto from 'node:crypto';
 
 import esMain from 'es-main';
 
@@ -45,6 +46,52 @@ type TurnstileCacheEntry = {
     verify?: any;
 };
 const turnstileReuseCache = new Map<string, TurnstileCacheEntry>();
+
+// Simple in-memory session store (swap to Redis for multi-instance)
+const SESSION_TTL_SECONDS = Number(process.env.SESSION_TTL_SECONDS ?? 1800); // 30m default
+const SESSION_COOKIE_NAME = String(
+    process.env.SESSION_COOKIE_NAME ?? 'fxrate_sess',
+);
+const SESSION_COOKIE_DOMAIN = process.env.SESSION_COOKIE_DOMAIN; // optional
+const SESSION_COOKIE_SAMESITE = (process.env.SESSION_COOKIE_SAMESITE ??
+    'None') as 'None' | 'Lax' | 'Strict';
+const sessionStore = new Map<string, { exp: number; data?: any }>();
+
+const parseCookies = (
+    cookieHeader: string | null | undefined,
+): Record<string, string> => {
+    const out: Record<string, string> = {};
+    if (!cookieHeader) return out;
+    cookieHeader.split(';').forEach((part) => {
+        const [k, ...rest] = part.trim().split('=');
+        if (!k) return;
+        out[k] = decodeURIComponent(rest.join('='));
+    });
+    return out;
+};
+
+const createSession = (data?: any) => {
+    const id = crypto.randomBytes(32).toString('base64url');
+    const exp = Date.now() + SESSION_TTL_SECONDS * 1000;
+    sessionStore.set(id, { exp, data });
+    return { id, exp };
+};
+
+const getSession = (id?: string | null) => {
+    if (!id) return null;
+    const s = sessionStore.get(id);
+    if (!s) return null;
+    if (s.exp <= Date.now()) {
+        sessionStore.delete(id);
+        return null;
+    }
+    return s;
+};
+
+// const destroySession = (id?: string | null) => {
+//     if (!id) return;
+//     sessionStore.delete(id);
+// };
 
 const Manager = new fxmManager({
     boc: getBOCFXRatesFromBOC,
@@ -116,6 +163,7 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                     `${request.ip} ${request.method} ${request.originURL}`,
                 );
 
+                // Basic headers
                 response.headers.set(
                     'Content-Type',
                     `application/json; charset=utf-8`,
@@ -126,11 +174,6 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                     'MIT, Data copyright belongs to its source. More details at <https://github.com/realSunyz/fxrate>.',
                 );
                 response.headers.set('X-Frame-Options', 'deny');
-                response.headers.set('Access-Control-Allow-Origin', '*');
-                response.headers.set(
-                    'Access-Control-Allow-Methods',
-                    'GET, POST, OPTIONS',
-                );
                 response.headers.set(
                     'Referrer-Policy',
                     'no-referrer-when-downgrade',
@@ -141,10 +184,57 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                 );
                 response.headers.set('Cache-Control', 'no-store');
 
+                // CORS: allow credentials if CORS_ORIGIN is set
+                const origin = request.headers.get('Origin');
+                const allowOrigin = process.env.CORS_ORIGIN || '*';
+                if (allowOrigin === '*' && origin) {
+                    // Wildcard cannot work with credentials; only set wildcard if not using cookies
+                    response.headers.set('Access-Control-Allow-Origin', '*');
+                } else {
+                    response.headers.set(
+                        'Access-Control-Allow-Origin',
+                        allowOrigin,
+                    );
+                    response.headers.set(
+                        'Access-Control-Allow-Credentials',
+                        'true',
+                    );
+                    response.headers.set('Vary', 'Origin');
+                }
+                response.headers.set(
+                    'Access-Control-Allow-Methods',
+                    'GET, POST, OPTIONS',
+                );
+                response.headers.set(
+                    'Access-Control-Allow-Headers',
+                    'Content-Type, Authorization',
+                );
+
+                // Preflight
+                if (request.method === 'OPTIONS') {
+                    response.status = 204;
+                    response.body = '';
+                    throw response; // short-circuit
+                }
+
                 try {
                     const secret = process.env.TURNSTILE_SECRET;
                     const token = request.query.get('token');
 
+                    // Session cookie auth
+                    const cookies = parseCookies(
+                        request.headers.get('Cookie') ||
+                            request.headers.get('cookie'),
+                    );
+                    const sess = getSession(cookies[SESSION_COOKIE_NAME]);
+                    if (sess) {
+                        (request as any).custom = (request as any).custom || {};
+                        (request as any).custom.turnstile = { success: true };
+                        response.headers.set('X-Session', 'valid');
+                        return; // already authenticated via session
+                    }
+
+                    // Token-based auth remains supported (for backwards compatibility)
                     if (token)
                         response.headers.set(
                             'X-Turnstile-Token-Present',
@@ -271,6 +361,146 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                 } catch (_e) {
                     void 0;
                 }
+            },
+        ]),
+    );
+
+    // Auth endpoint to exchange Turnstile token -> session cookie
+    App.binding(
+        '/auth/turnstile',
+        new handler('POST', [
+            async (request, response) => {
+                const secret = process.env.TURNSTILE_SECRET;
+                if (!secret) {
+                    response.status = 500;
+                    response.body = JSON.stringify({
+                        success: false,
+                        error: 'server_misconfigured',
+                    });
+                    return response;
+                }
+
+                // Accept cf-turnstile-response or token via query/body (best-effort)
+                let token =
+                    request.query.get('cf-turnstile-response') ||
+                    request.query.get('token');
+                if (!token) {
+                    try {
+                        const body = String(request.body || '');
+                        if (body) {
+                            // naive parse for both JSON and form-encoded
+                            if (
+                                request.headers
+                                    .get('Content-Type')
+                                    ?.includes('application/json')
+                            ) {
+                                const parsed = JSON.parse(body);
+                                token =
+                                    parsed['cf-turnstile-response'] ||
+                                    parsed['token'] ||
+                                    '';
+                            } else if (
+                                request.headers
+                                    .get('Content-Type')
+                                    ?.includes(
+                                        'application/x-www-form-urlencoded',
+                                    )
+                            ) {
+                                const usp = new URLSearchParams(body);
+                                token =
+                                    usp.get('cf-turnstile-response') ||
+                                    usp.get('token') ||
+                                    '';
+                            }
+                        }
+                    } catch {
+                        // ignore
+                    }
+                }
+
+                if (!token) {
+                    response.status = 400;
+                    response.body = JSON.stringify({
+                        success: false,
+                        error: 'missing_token',
+                    });
+                    return response;
+                }
+
+                const form = new URLSearchParams();
+                form.set('secret', secret);
+                form.set('response', token);
+                if (request.ip) form.set('remoteip', request.ip);
+
+                const verify = await axios
+                    .post(
+                        'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+                        form,
+                        {
+                            headers: {
+                                'Content-Type':
+                                    'application/x-www-form-urlencoded',
+                                'User-Agent': 'fxrate/turnstile-verify',
+                            },
+                            timeout: 5000,
+                        },
+                    )
+                    .then((r) => r.data)
+                    .catch((e) => ({
+                        success: false,
+                        error: e?.message ?? 'request_error',
+                    }));
+
+                if (verify?.success === true) {
+                    const { id, exp } = createSession({ turnstile: verify });
+                    const attrs = [
+                        `${SESSION_COOKIE_NAME}=${encodeURIComponent(id)}`,
+                        `Max-Age=${SESSION_TTL_SECONDS}`,
+                        'HttpOnly',
+                        'Secure',
+                        `SameSite=${SESSION_COOKIE_SAMESITE}`,
+                        'Path=/',
+                    ];
+                    if (SESSION_COOKIE_DOMAIN)
+                        attrs.push(`Domain=${SESSION_COOKIE_DOMAIN}`);
+                    response.headers.set('Set-Cookie', attrs.join('; '));
+                    response.status = 200;
+                    response.body = JSON.stringify({
+                        success: true,
+                        expiresAt: new Date(exp).toISOString(),
+                    });
+                } else {
+                    response.status = 403;
+                    response.body = JSON.stringify({
+                        success: false,
+                        error: 'turnstile_verification_failed',
+                        details: verify,
+                    });
+                }
+                return response;
+            },
+        ]),
+    );
+
+    // Optional: logout endpoint to clear cookie
+    App.binding(
+        '/auth/logout',
+        new handler('POST', [
+            async (_request, response) => {
+                const attrs = [
+                    `${SESSION_COOKIE_NAME}=`,
+                    'Max-Age=0',
+                    'HttpOnly',
+                    'Secure',
+                    `SameSite=${SESSION_COOKIE_SAMESITE}`,
+                    'Path=/',
+                ];
+                if (SESSION_COOKIE_DOMAIN)
+                    attrs.push(`Domain=${SESSION_COOKIE_DOMAIN}`);
+                response.headers.set('Set-Cookie', attrs.join('; '));
+                response.status = 200;
+                response.body = JSON.stringify({ success: true });
+                return response;
             },
         ]),
     );
