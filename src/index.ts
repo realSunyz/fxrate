@@ -107,6 +107,10 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                     `${request.ip} ${request.method} ${request.originURL}`,
                 );
 
+                response.headers.set(
+                    'Content-Type',
+                    `application/json; charset=utf-8`,
+                );
                 response.headers.set('X-Powered-By', `fxrate/latest`);
                 response.headers.set(
                     'X-License',
@@ -125,10 +129,6 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                 response.headers.set(
                     'Permissions-Policy',
                     'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()',
-                );
-                response.headers.set(
-                    'Content-Security-Policy',
-                    "default-src 'self'",
                 );
 
                 try {
