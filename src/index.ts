@@ -37,6 +37,15 @@ import mastercardFXM from './FXGetter/mastercard';
 import visaFXM from './FXGetter/visa';
 // import { RSSHandler } from './handler/rss';
 
+const TURNSTILE_REUSE_TTL_SECONDS = Number(
+    process.env.TURNSTILE_REUSE_TTL_SECONDS ?? 300,
+);
+type TurnstileCacheEntry = {
+    exp: number;
+    verify?: any;
+};
+const turnstileReuseCache = new Map<string, TurnstileCacheEntry>();
+
 const Manager = new fxmManager({
     boc: getBOCFXRatesFromBOC,
     // bochk: getBOCHKFxRates,
@@ -130,6 +139,7 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                     'Permissions-Policy',
                     'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()',
                 );
+                response.headers.set('Cache-Control', 'no-store');
 
                 try {
                     const secret = process.env.TURNSTILE_SECRET;
@@ -147,6 +157,46 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                         );
 
                     if (token && secret) {
+                        const now = Date.now();
+                        const cached = turnstileReuseCache.get(token);
+                        if (
+                            cached &&
+                            cached.exp > now &&
+                            cached.verify?.success === true
+                        ) {
+                            (request as any).custom =
+                                (request as any).custom || {};
+                            (request as any).custom.turnstile = cached.verify;
+
+                            response.headers.set(
+                                'X-Turnstile-Validation',
+                                'passed-cached',
+                            );
+                            if (cached.verify?.challenge_ts)
+                                response.headers.set(
+                                    'X-Turnstile-Challenge-TS',
+                                    String(cached.verify.challenge_ts),
+                                );
+                            if (cached.verify?.hostname)
+                                response.headers.set(
+                                    'X-Turnstile-Hostname',
+                                    String(cached.verify.hostname),
+                                );
+                            if (cached.verify?.action)
+                                response.headers.set(
+                                    'X-Turnstile-Action',
+                                    String(cached.verify.action),
+                                );
+                            response.headers.set(
+                                'X-Turnstile-Reuse-Until',
+                                new Date(cached.exp).toISOString(),
+                            );
+                            response.headers.set(
+                                'X-Turnstile-Reusable',
+                                'enabled',
+                            );
+                            return;
+                        }
                         const form = new URLSearchParams();
                         form.set('secret', secret);
                         form.set('response', token);
@@ -194,6 +244,17 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                                     'X-Turnstile-Action',
                                     String(verify.action),
                                 );
+                            const exp =
+                                Date.now() + TURNSTILE_REUSE_TTL_SECONDS * 1000;
+                            turnstileReuseCache.set(token, { exp, verify });
+                            response.headers.set(
+                                'X-Turnstile-Reuse-Until',
+                                new Date(exp).toISOString(),
+                            );
+                            response.headers.set(
+                                'X-Turnstile-Reusable',
+                                'enabled',
+                            );
                         } else {
                             response.headers.set(
                                 'X-Turnstile-Validation',
