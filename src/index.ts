@@ -38,24 +38,35 @@ import mastercardFXM from './FXGetter/mastercard';
 import visaFXM from './FXGetter/visa';
 // import { RSSHandler } from './handler/rss';
 
-const TURNSTILE_REUSE_TTL_SECONDS = Number(
-    process.env.TURNSTILE_REUSE_TTL_SECONDS ?? 300,
-);
-type TurnstileCacheEntry = {
-    exp: number;
-    verify?: any;
-};
-const turnstileReuseCache = new Map<string, TurnstileCacheEntry>();
-
-// Simple in-memory session store (swap to Redis for multi-instance)
-const SESSION_TTL_SECONDS = Number(process.env.SESSION_TTL_SECONDS ?? 1800); // 30m default
+const SESSION_TTL_SECONDS = Number(process.env.SESSION_TTL_SECONDS ?? 300);
 const SESSION_COOKIE_NAME = String(
     process.env.SESSION_COOKIE_NAME ?? 'fxrate_sess',
 );
-const SESSION_COOKIE_DOMAIN = process.env.SESSION_COOKIE_DOMAIN; // optional
+const SESSION_COOKIE_DOMAIN = process.env.SESSION_COOKIE_DOMAIN;
 const SESSION_COOKIE_SAMESITE = (process.env.SESSION_COOKIE_SAMESITE ??
     'None') as 'None' | 'Lax' | 'Strict';
+const SESSION_COOKIE_SECURE: boolean = (() => {
+    const v = process.env.SESSION_COOKIE_SECURE;
+    if (v == null) return process.env.NODE_ENV === 'production';
+    return !/^(0|false|no|off)$/i.test(String(v));
+})();
 const sessionStore = new Map<string, { exp: number; data?: any }>();
+
+const getSessionWithReason = (
+    id?: string | null,
+): {
+    session: { exp: number; data?: any } | null;
+    reason?: 'expired' | 'missing';
+} => {
+    if (!id) return { session: null, reason: 'missing' };
+    const s = sessionStore.get(id);
+    if (!s) return { session: null, reason: 'missing' };
+    if (s.exp <= Date.now()) {
+        sessionStore.delete(id);
+        return { session: null, reason: 'expired' };
+    }
+    return { session: s };
+};
 
 const parseCookies = (
     cookieHeader: string | null | undefined,
@@ -76,22 +87,6 @@ const createSession = (data?: any) => {
     sessionStore.set(id, { exp, data });
     return { id, exp };
 };
-
-const getSession = (id?: string | null) => {
-    if (!id) return null;
-    const s = sessionStore.get(id);
-    if (!s) return null;
-    if (s.exp <= Date.now()) {
-        sessionStore.delete(id);
-        return null;
-    }
-    return s;
-};
-
-// const destroySession = (id?: string | null) => {
-//     if (!id) return;
-//     sessionStore.delete(id);
-// };
 
 const Manager = new fxmManager({
     boc: getBOCFXRatesFromBOC,
@@ -163,7 +158,6 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                     `${request.ip} ${request.method} ${request.originURL}`,
                 );
 
-                // Basic headers
                 response.headers.set(
                     'Content-Type',
                     `application/json; charset=utf-8`,
@@ -184,11 +178,9 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                 );
                 response.headers.set('Cache-Control', 'no-store');
 
-                // CORS: allow credentials if CORS_ORIGIN is set
                 const origin = request.headers.get('Origin');
                 const allowOrigin = process.env.CORS_ORIGIN || '*';
                 if (allowOrigin === '*' && origin) {
-                    // Wildcard cannot work with credentials; only set wildcard if not using cookies
                     response.headers.set('Access-Control-Allow-Origin', '*');
                 } else {
                     response.headers.set(
@@ -210,153 +202,44 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                     'Content-Type, Authorization',
                 );
 
-                // Preflight
                 if (request.method === 'OPTIONS') {
                     response.status = 204;
                     response.body = '';
-                    throw response; // short-circuit
+                    throw response;
                 }
 
                 try {
-                    const secret = process.env.TURNSTILE_SECRET;
-                    const token = request.query.get('token');
+                    (request as any).custom = (request as any).custom || {};
 
-                    // Session cookie auth
+                    const qToken = request.query.get('token');
+                    if (qToken === '__internal__') {
+                        (request as any).custom.turnstile = { success: true };
+                        response.headers.set('X-Auth', 'internal');
+                        return;
+                    }
+
                     const cookies = parseCookies(
                         request.headers.get('Cookie') ||
                             request.headers.get('cookie'),
                     );
-                    const sess = getSession(cookies[SESSION_COOKIE_NAME]);
-                    if (sess) {
-                        (request as any).custom = (request as any).custom || {};
+                    const { session, reason } = getSessionWithReason(
+                        cookies[SESSION_COOKIE_NAME],
+                    );
+                    if (session) {
                         (request as any).custom.turnstile = { success: true };
                         response.headers.set('X-Session', 'valid');
-                        return; // already authenticated via session
-                    }
-
-                    // Token-based auth remains supported (for backwards compatibility)
-                    if (token)
+                    } else {
+                        (request as any).custom.turnstile = {
+                            success: false,
+                            error:
+                                reason === 'expired'
+                                    ? 'token expired'
+                                    : 'token invalid',
+                        };
                         response.headers.set(
-                            'X-Turnstile-Token-Present',
-                            'true',
+                            'X-Session',
+                            reason === 'expired' ? 'expired' : 'missing',
                         );
-                    if (!secret)
-                        response.headers.set(
-                            'X-Turnstile-Validation',
-                            'skipped-missing-secret',
-                        );
-
-                    if (token && secret) {
-                        const now = Date.now();
-                        const cached = turnstileReuseCache.get(token);
-                        if (
-                            cached &&
-                            cached.exp > now &&
-                            cached.verify?.success === true
-                        ) {
-                            (request as any).custom =
-                                (request as any).custom || {};
-                            (request as any).custom.turnstile = cached.verify;
-
-                            response.headers.set(
-                                'X-Turnstile-Validation',
-                                'passed-cached',
-                            );
-                            if (cached.verify?.challenge_ts)
-                                response.headers.set(
-                                    'X-Turnstile-Challenge-TS',
-                                    String(cached.verify.challenge_ts),
-                                );
-                            if (cached.verify?.hostname)
-                                response.headers.set(
-                                    'X-Turnstile-Hostname',
-                                    String(cached.verify.hostname),
-                                );
-                            if (cached.verify?.action)
-                                response.headers.set(
-                                    'X-Turnstile-Action',
-                                    String(cached.verify.action),
-                                );
-                            response.headers.set(
-                                'X-Turnstile-Reuse-Until',
-                                new Date(cached.exp).toISOString(),
-                            );
-                            response.headers.set(
-                                'X-Turnstile-Reusable',
-                                'enabled',
-                            );
-                            return;
-                        }
-                        const form = new URLSearchParams();
-                        form.set('secret', secret);
-                        form.set('response', token);
-                        if (request.ip) form.set('remoteip', request.ip);
-
-                        const verify = await axios
-                            .post(
-                                'https://challenges.cloudflare.com/turnstile/v0/siteverify',
-                                form,
-                                {
-                                    headers: {
-                                        'Content-Type':
-                                            'application/x-www-form-urlencoded',
-                                        'User-Agent': 'fxrate/turnstile-verify',
-                                    },
-                                    timeout: 5000,
-                                },
-                            )
-                            .then((r) => r.data)
-                            .catch((e) => ({
-                                success: false,
-                                error: e?.message ?? 'request_error',
-                            }));
-
-                        (request as any).custom = (request as any).custom || {};
-                        (request as any).custom.turnstile = verify;
-
-                        if (verify?.success === true) {
-                            response.headers.set(
-                                'X-Turnstile-Validation',
-                                'passed',
-                            );
-                            if (verify?.challenge_ts)
-                                response.headers.set(
-                                    'X-Turnstile-Challenge-TS',
-                                    String(verify.challenge_ts),
-                                );
-                            if (verify?.hostname)
-                                response.headers.set(
-                                    'X-Turnstile-Hostname',
-                                    String(verify.hostname),
-                                );
-                            if (verify?.action)
-                                response.headers.set(
-                                    'X-Turnstile-Action',
-                                    String(verify.action),
-                                );
-                            const exp =
-                                Date.now() + TURNSTILE_REUSE_TTL_SECONDS * 1000;
-                            turnstileReuseCache.set(token, { exp, verify });
-                            response.headers.set(
-                                'X-Turnstile-Reuse-Until',
-                                new Date(exp).toISOString(),
-                            );
-                            response.headers.set(
-                                'X-Turnstile-Reusable',
-                                'enabled',
-                            );
-                        } else {
-                            response.headers.set(
-                                'X-Turnstile-Validation',
-                                'failed',
-                            );
-                            if (verify?.['error-codes']) {
-                                response.headers.set(
-                                    'X-Turnstile-Error-Codes',
-                                    String(verify['error-codes']),
-                                );
-                            }
-                        }
                     }
                 } catch (_e) {
                     void 0;
@@ -365,40 +248,32 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
         ]),
     );
 
-    // Auth endpoint to exchange Turnstile token -> session cookie
     App.binding(
-        '/auth/turnstile',
+        '/auth/signed',
         new handler('POST', [
             async (request, response) => {
-                const secret = process.env.TURNSTILE_SECRET;
-                if (!secret) {
-                    response.status = 500;
-                    response.body = JSON.stringify({
-                        success: false,
-                        error: 'server_misconfigured',
-                    });
-                    return response;
-                }
-
-                // Accept cf-turnstile-response or token via query/body (best-effort)
+                const q = request.query;
                 let token =
-                    request.query.get('cf-turnstile-response') ||
-                    request.query.get('token');
+                    q.get('cf-turnstile-response') ||
+                    q.get('cf_token') ||
+                    q.get('token') ||
+                    '';
+
                 if (!token) {
                     try {
                         const body = String(request.body || '');
                         if (body) {
-                            // naive parse for both JSON and form-encoded
                             if (
                                 request.headers
                                     .get('Content-Type')
                                     ?.includes('application/json')
                             ) {
-                                const parsed = JSON.parse(body);
+                                const parsed = JSON.parse(body || '{}');
                                 token =
                                     parsed['cf-turnstile-response'] ||
+                                    parsed['cf_token'] ||
                                     parsed['token'] ||
-                                    '';
+                                    token;
                             } else if (
                                 request.headers
                                     .get('Content-Type')
@@ -409,20 +284,31 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                                 const usp = new URLSearchParams(body);
                                 token =
                                     usp.get('cf-turnstile-response') ||
+                                    usp.get('cf_token') ||
                                     usp.get('token') ||
-                                    '';
+                                    token;
                             }
                         }
-                    } catch {
-                        // ignore
+                    } catch (_e) {
+                        // ignore body parse errors
                     }
                 }
 
+                const secret = process.env.TURNSTILE_SECRET;
                 if (!token) {
-                    response.status = 400;
+                    response.status = 403;
                     response.body = JSON.stringify({
                         success: false,
-                        error: 'missing_token',
+                        error: 'token invalid',
+                    });
+                    return response;
+                }
+                if (!secret) {
+                    response.status = 500;
+                    response.body = JSON.stringify({
+                        success: false,
+                        error: 'server_misconfigured',
+                        details: 'missing_turnstile_secret',
                     });
                     return response;
                 }
@@ -457,10 +343,10 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                         `${SESSION_COOKIE_NAME}=${encodeURIComponent(id)}`,
                         `Max-Age=${SESSION_TTL_SECONDS}`,
                         'HttpOnly',
-                        'Secure',
                         `SameSite=${SESSION_COOKIE_SAMESITE}`,
                         'Path=/',
                     ];
+                    if (SESSION_COOKIE_SECURE) attrs.push('Secure');
                     if (SESSION_COOKIE_DOMAIN)
                         attrs.push(`Domain=${SESSION_COOKIE_DOMAIN}`);
                     response.headers.set('Set-Cookie', attrs.join('; '));
@@ -469,20 +355,23 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                         success: true,
                         expiresAt: new Date(exp).toISOString(),
                     });
-                } else {
-                    response.status = 403;
-                    response.body = JSON.stringify({
-                        success: false,
-                        error: 'turnstile_verification_failed',
-                        details: verify,
-                    });
+                    return response;
                 }
+
+                const errCodes = (verify && verify['error-codes']) || [];
+                const isExpired = Array.isArray(errCodes)
+                    ? errCodes.includes('timeout-or-duplicate')
+                    : String(errCodes).includes('timeout-or-duplicate');
+                response.status = 403;
+                response.body = JSON.stringify({
+                    success: false,
+                    error: isExpired ? 'token expired' : 'token invalid',
+                });
                 return response;
             },
         ]),
     );
 
-    // Optional: logout endpoint to clear cookie
     App.binding(
         '/auth/logout',
         new handler('POST', [
@@ -491,10 +380,10 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                     `${SESSION_COOKIE_NAME}=`,
                     'Max-Age=0',
                     'HttpOnly',
-                    'Secure',
                     `SameSite=${SESSION_COOKIE_SAMESITE}`,
                     'Path=/',
                 ];
+                if (SESSION_COOKIE_SECURE) attrs.push('Secure');
                 if (SESSION_COOKIE_DOMAIN)
                     attrs.push(`Domain=${SESSION_COOKIE_DOMAIN}`);
                 response.headers.set('Set-Cookie', attrs.join('; '));

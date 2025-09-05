@@ -266,7 +266,9 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
                     rep.status = 403;
                     rep.body = JSON.stringify({
                         success: false,
-                        error: 'Invalid Token',
+                        error:
+                            (request as any)?.custom?.turnstile?.error ||
+                            'token invalid',
                         cash: 0,
                         remit: 0,
                         middle: 0,
@@ -300,7 +302,9 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
                 response.status = 403;
                 response.body = JSON.stringify({
                     success: false,
-                    error: 'Invalid Token',
+                    error:
+                        (request as any)?.custom?.turnstile?.error ||
+                        'token invalid',
                     cash: 0,
                     remit: 0,
                     middle: 0,
@@ -432,7 +436,9 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
         ) => {
             const body = {
                 success: false,
-                error: 'Invalid Token',
+                error:
+                    (request as any)?.custom?.turnstile?.error ||
+                    'token invalid',
                 cash: 0,
                 remit: 0,
                 middle: 0,
@@ -454,7 +460,9 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
                 response.status = 403;
                 response.body = JSON.stringify({
                     success: false,
-                    error: 'Invalid Token',
+                    error:
+                        (request as any)?.custom?.turnstile?.error ||
+                        'token invalid',
                     cash: 0,
                     remit: 0,
                     middle: 0,
@@ -491,7 +499,9 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
                 response.status = 403;
                 response.body = JSON.stringify({
                     success: false,
-                    error: 'Invalid Token',
+                    error:
+                        (request as any)?.custom?.turnstile?.error ||
+                        'token invalid',
                     cash: 0,
                     remit: 0,
                     middle: 0,
