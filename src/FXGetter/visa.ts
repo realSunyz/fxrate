@@ -208,6 +208,17 @@ const currenciesList: string[] = [
 export default class visaFXM extends fxManager {
     ableToGetAllFXRate: boolean = false;
 
+    public invalidate(from?: currency, to?: currency) {
+        if (!from && !to) {
+            cache.clear();
+            return;
+        }
+        const _from = (from as string) === 'CNH' ? 'CNY' : (from as string);
+        const _to = (to as string) === 'CNH' ? 'CNY' : (to as string);
+        cache.delete(`${_from}${_to}`);
+        cache.delete(`${_to}${_from}`);
+    }
+
     public get fxRateList() {
         const fxRateList: fxManager['_fxRateList'] = {} as any;
 

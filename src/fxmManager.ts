@@ -423,6 +423,35 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
             );
         };
 
+        const maybeRefresh = async (request: request<any>) => {
+            const q = String(request.query.get('refresh') || '').toLowerCase();
+            const should = q === 'true' || q === '1' || q === 'yes';
+            if (!should) return;
+
+            if (this.fxRateGetter && this.fxRateGetter[source]) {
+                try {
+                    await this.updateFXManager(source);
+                } catch (_e) {
+                    void 0;
+                }
+            }
+
+            const fxm: any = this.fxms[source];
+            if (fxm && typeof fxm.invalidate === 'function') {
+                const from = request.params?.from
+                    ? String(request.params.from).toUpperCase()
+                    : undefined;
+                const to = request.params?.to
+                    ? String(request.params.to).toUpperCase()
+                    : undefined;
+                try {
+                    fxm.invalidate(from, to);
+                } catch (_e) {
+                    void 0;
+                }
+            }
+        };
+
         const isTurnstileValid = (request: request<any>) => {
             const ver = (request as any)?.custom?.turnstile;
             return ver?.success === true;
@@ -456,6 +485,7 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
             request: request<any>,
             response: response<any>,
         ) => {
+            await maybeRefresh(request);
             if (!isTurnstileValid(request)) {
                 response.status = 403;
                 response.body = JSON.stringify({
@@ -495,6 +525,7 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
             request: request<any>,
             response: response<any>,
         ) => {
+            await maybeRefresh(request);
             if (!isTurnstileValid(request)) {
                 response.status = 403;
                 response.body = JSON.stringify({
@@ -554,6 +585,7 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
             request: request<any>,
             response: response<any>,
         ) => {
+            await maybeRefresh(request);
             if (request.params.from)
                 request.params.from = request.params.from.toUpperCase();
 
@@ -602,6 +634,7 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
             request: request<any>,
             response: response<any>,
         ) => {
+            await maybeRefresh(request);
             if (request.params.from)
                 request.params.from = request.params.from.toUpperCase();
 

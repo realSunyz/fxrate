@@ -52,6 +52,12 @@ const SESSION_COOKIE_SECURE: boolean = (() => {
 })();
 const sessionStore = new Map<string, { exp: number; data?: any }>();
 
+const TURNSTILE_ENABLED: boolean = (() => {
+    const v = process.env.TURNSTILE_ENABLE;
+    if (v == null) return true;
+    return !/^(0|false|no|off)$/i.test(String(v));
+})();
+
 const getSessionWithReason = (
     id?: string | null,
 ): {
@@ -211,6 +217,15 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                 try {
                     (request as any).custom = (request as any).custom || {};
 
+                    if (!TURNSTILE_ENABLED) {
+                        (request as any).custom.turnstile = {
+                            success: true,
+                            disabled: true,
+                        };
+                        response.headers.set('X-Session', 'disabled');
+                        return;
+                    }
+
                     const qToken = request.query.get('token');
                     if (qToken === '__internal__') {
                         (request as any).custom.turnstile = { success: true };
@@ -252,6 +267,11 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
         '/auth/signed',
         new handler('POST', [
             async (request, response) => {
+                if (!TURNSTILE_ENABLED) {
+                    response.status = 200;
+                    response.body = JSON.stringify({ success: true });
+                    return response;
+                }
                 const q = request.query;
                 let token =
                     q.get('cf-turnstile-response') ||
@@ -290,7 +310,7 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                             }
                         }
                     } catch (_e) {
-                        // ignore body parse errors
+                        void 0;
                     }
                 }
 
