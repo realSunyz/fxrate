@@ -1,8 +1,8 @@
-# FXRate
+# fxRate
 
 Yet another foreign exchange rate API project.
 
-This project is based on [186526/fxrate](https://github.com/186526/fxrate) with enhancements.
+This project is based on [186526/fxrate](https://github.com/186526/fxrate) with several enhancements.
 
 It is recommended to use with [realSunyz/fxrate-web](https://github.com/realsunyz/fxrate-web).
 
@@ -10,44 +10,20 @@ It is recommended to use with [realSunyz/fxrate-web](https://github.com/realsuny
 
 ## Usage
 
-Test URL: Not Available
-
-### Restful API v1 Usage
+This project supports RESTful API.
 
 - `GET (/v1)/info` - show instance's details.
 
 ```typescript
-type source = string;
-
-interface result {
-    status: 'ok' as string;
-    sources: source[];
-    version: string;
+interface InfoResponse {
     apiVersion: 'v1';
     environment: 'production' | 'development';
+    error: string;
+    status: 'ok';
+    sources: string[];
+    success: boolean;
+    version: string;
 }
-
-export default result;
-```
-
-- `GET (/v1)/:source/` - show source's details.
-
-```typescript
-enum currency {
-    // For example
-    USD = 'USD';
-}
-
-type UTCString = string;
-
-interface result {
-    status: 'ok' as string;
-    source: source;
-    currency: currency[];
-    date: UTCString;
-}
-
-export default result;
 ```
 
 - `GET (/v1)/:source/:from(?reverse&precision&amount&fees)` - show currency's FX rates to other currency in source's db.
@@ -58,12 +34,13 @@ export default result;
 // query use ?amount means convert from/to $amount currency.
 // query use ?fees means add $fees% ftf.
 interface FXRate {
+    cash: number;
+    remit: number;
+    middle: number;
+    provided: bool;
     updated: UTCString;
-    // number: 721.55
-    // string: 721.(55)
-    cash: number | string | false;
-    remit: number | string | false;
-    middle: number | string;
+    error: string;
+    success: bool;
 }
 
 interface result {
@@ -89,64 +66,12 @@ type result = FXRate;
 export default result[type];
 ```
 
-### JSONRPC v2 API Usage
+### Auth Endpoints
 
-Please be advised that the JSONRPC function is from the source repository without any edit. So we do not gurantee it is able to use. You can generally regard it as deprecated or broken.
+These endpoints manage Turnstile-based sessions for REST calls:
 
-Endpoint `(/v1)/jsonrpc/v2`
-
-- `instanceInfo`
-
-    Params: `undefined`  
-     Response: Follow `GET (/v1)/info`
-
-- `listCurrencies`
-
-    Params:
-
-    ```typescript
-    {
-        source: string;
-    }
-    ```
-
-    Response: Follow `GET (/v1)/:source/`
-
-- `listFXRates`
-
-    Params:
-
-    ```typescript
-    {
-        source: string;
-        from: currency;
-        precision: number = 2;
-        amount: number = 100;
-        fees: number = 0;
-        reverse: boolean = false;
-    }
-    ```
-
-    Response: Follow `GET (/v1)/:source/:from(?reverse&precision&amount&fees)`
-
-- `getFXRates`
-
-    Params:
-
-    ```typescript
-    {
-        source: string;
-        from: currency;
-        to: currency;
-        type: 'remit' | 'cash' | 'middle' | 'all';
-        precision: number = 2;
-        amount: number = 100;
-        fees: number = 0;
-        reverse: boolean = false;
-    }
-    ```
-
-    Response: Follow `GET (/v1)/:source/:from/:to/:type(/:amount)(?reverse&precision&amount&fees)`
+- `POST (/v1)/auth/signed` — verify a Turnstile token and issue a session cookie.
+- `POST (/v1)/auth/logout` — clear the session cookie.
 
 ## Running
 

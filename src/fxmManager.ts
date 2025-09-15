@@ -1,13 +1,11 @@
 import { router, response, request, handler, interfaces } from 'handlers.js';
 import fxManager from './fxm/fxManager';
-import { FXRate, JSONRPCMethods, currency } from 'src/types';
+import { FXRate, currency } from 'src/types';
 import { supportedCurrenciesList } from './constant';
 
 import { round, multiply, Fraction } from 'mathjs';
 
 import process from 'node:process';
-
-import JSONRPCRouter from 'handlers.js-jsonrpc';
 
 export const useBasic = (response: response<any>): void => {
     response.status = 200;
@@ -179,7 +177,7 @@ const getDetails = async (
     return result;
 };
 
-class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
+class fxmManager extends router {
     private fxms: {
         [source: string]: fxManager;
     } = {};
@@ -195,59 +193,6 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
     public intervalIDs: {
         key: { timeout: NodeJS.Timeout; refreshDate: Date };
     } = {} as any;
-
-    protected rpcHandlers = {
-        instanceInfo: () => useInternalRestAPI('info', this),
-
-        listCurrencies: async ({ source }) => {
-            if (!source) throw new Error('source is required.');
-
-            const k = await useInternalRestAPI(`${source}/`, this);
-            return new Object({
-                currency: k.currency,
-                date: k.date,
-            });
-        },
-
-        listFXRates: ({
-            source,
-            from,
-            precision = 2,
-            amount = 100,
-            fees = 0,
-            reverse = false,
-        }) => {
-            if (!source) throw new Error('source is required.');
-            if (!from) throw new Error('from is required.');
-
-            return useInternalRestAPI(
-                `${source}/${from}?precision=${precision}&amount=${amount}&fees=${fees}${reverse ? '&reverse' : ''}`,
-                this,
-            );
-        },
-
-        getFXRate: ({
-            source,
-            from,
-            to,
-            type,
-            precision = 2,
-            amount = 100,
-            fees = 0,
-            reverse = false,
-        }) => {
-            if (!source) throw new Error('source is required.');
-            if (!from) throw new Error('from is required.');
-            if (!to) throw new Error('to is required.');
-            if (!type) throw new Error('type is required.');
-            if (type == 'all') type = '';
-
-            return useInternalRestAPI(
-                `${source}/${from}/${to}/${type}?precision=${precision}&fees=${fees}${reverse ? '&reverse' : ''}&amount=${amount}`,
-                this,
-            );
-        },
-    };
 
     constructor(sources: { [source: string]: () => Promise<FXRate[]> }) {
         super();
@@ -292,37 +237,6 @@ class fxmManager extends JSONRPCRouter<any, any, JSONRPCMethods> {
                 return rep;
             }),
         );
-
-        const enforceToken = async (
-            request: request<any>,
-            response: response<any>,
-        ) => {
-            const valid = (request as any)?.custom?.turnstile?.success === true;
-            if (!valid) {
-                response.status = 403;
-                response.body = JSON.stringify({
-                    success: false,
-                    error:
-                        (request as any)?.custom?.turnstile?.error ||
-                        'token invalid',
-                    cash: 0,
-                    remit: 0,
-                    middle: 0,
-                    provided: false,
-                    updated: new Date().toUTCString(),
-                });
-                useJson(response, request);
-                throw response;
-            }
-            return response;
-        };
-
-        this.binding('/jsonrpc', new handler('ANY', [enforceToken]));
-        this.binding('/jsonrpc/(.*)', new handler('ANY', [enforceToken]));
-        this.binding('/jsonrpc/v2(.*)', new handler('ANY', [enforceToken]));
-
-        this.enableList().mount();
-        this.log('JSONRPC is mounted.');
     }
 
     public log(str: string) {
