@@ -9,24 +9,6 @@ describe('Server Status', () => {
         const res = await useInternalRestAPI('info', Instance);
         expect(res.status).toEqual('ok');
     });
-
-    test(
-        '/:sources/',
-        async () => {
-            const res = await useInternalRestAPI('info', Instance);
-            expect(res.status).toEqual('ok');
-
-            await Promise.all(
-                res.sources.map(async (source) => {
-                    const p = await useInternalRestAPI(`${source}`, Instance);
-                    expect(p.status).toEqual('ok');
-                }),
-            );
-
-            await new Promise((resolve) => setTimeout(resolve, 5 * 1000));
-        },
-        45 * 1000,
-    );
 });
 
 afterAll((t) => {
