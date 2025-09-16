@@ -204,34 +204,12 @@ class fxmManager extends router {
             '/info',
             this.create('GET', async (request: request<any>) => {
                 const rep = new response<any>('', 200);
-
-                const valid =
-                    (request as any)?.custom?.turnstile?.success === true;
-                if (!valid) {
-                    rep.status = 403;
-                    rep.body = JSON.stringify({
-                        success: false,
-                        error:
-                            (request as any)?.custom?.turnstile?.error ||
-                            'token invalid',
-                        cash: 0,
-                        remit: 0,
-                        middle: 0,
-                        provided: false,
-                        updated: new Date().toUTCString(),
-                    });
-                    useJson(rep, request);
-                    return rep;
-                }
-
                 rep.body = JSON.stringify({
                     status: 'ok',
                     sources: Object.keys(this.fxms),
                     version: `fxrate@${globalThis.GITBUILD || 'git'} ${globalThis.BUILDTIME || 'devlopment'}`,
                     apiVersion: 'v1',
                     environment: process.env.NODE_ENV || 'development',
-                    success: true,
-                    error: '',
                 });
                 useJson(rep, request);
                 return rep;
