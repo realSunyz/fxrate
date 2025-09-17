@@ -34,7 +34,7 @@ docker pull sjc.vultrcr.com/seven/fxrate:latest
 
 ## Configuration
 
-> [!TIPS]
+> [!IMPORTANT]
 > Always deploy behind HTTPS and enable Cloudflare Turnstile in production to prevent potential attacks and unauthorized queries.
 
 | Variable                  | Default                            | Description                            |
