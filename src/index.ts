@@ -39,10 +39,7 @@ import visaFXM from './FXGetter/visa';
 // import { RSSHandler } from './handler/rss';
 
 const SESSION_TTL_SECONDS = Number(process.env.SESSION_TTL_SECONDS ?? 300);
-const SESSION_COOKIE_NAME = String(
-    process.env.SESSION_COOKIE_NAME ?? 'fxrate_sess',
-);
-const SESSION_COOKIE_DOMAIN = process.env.SESSION_COOKIE_DOMAIN;
+const SESSION_COOKIE_DOMAIN = process.env.SESSION_COOKIE_DOMAIN || undefined;
 const SESSION_COOKIE_SAMESITE = (process.env.SESSION_COOKIE_SAMESITE ??
     'None') as 'None' | 'Lax' | 'Strict';
 const SESSION_COOKIE_SECURE: boolean = (() => {
@@ -50,6 +47,14 @@ const SESSION_COOKIE_SECURE: boolean = (() => {
     if (v == null) return process.env.NODE_ENV === 'production';
     return !/^(0|false|no|off)$/i.test(String(v));
 })();
+const DEFAULT_SESSION_COOKIE_NAME = SESSION_COOKIE_SECURE
+    ? SESSION_COOKIE_DOMAIN
+        ? '__Secure-fxrate-sess'
+        : '__Host-fxrate-sess'
+    : 'fxrate_sess';
+const SESSION_COOKIE_NAME = String(
+    process.env.SESSION_COOKIE_NAME ?? DEFAULT_SESSION_COOKIE_NAME,
+);
 const sessionStore = new Map<string, { exp: number; data?: any }>();
 
 const TURNSTILE_ENABLED: boolean = (() => {
