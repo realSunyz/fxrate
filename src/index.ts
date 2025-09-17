@@ -278,11 +278,7 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                     return response;
                 }
                 const q = request.query;
-                let token =
-                    q.get('cf-turnstile-response') ||
-                    q.get('cf_token') ||
-                    q.get('token') ||
-                    '';
+                let token = q.get('turnstile-token') || q.get('token') || '';
 
                 if (!token) {
                     try {
@@ -295,8 +291,7 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                             ) {
                                 const parsed = JSON.parse(body || '{}');
                                 token =
-                                    parsed['cf-turnstile-response'] ||
-                                    parsed['cf_token'] ||
+                                    parsed['turnstile-token'] ||
                                     parsed['token'] ||
                                     token;
                             } else if (
@@ -308,8 +303,7 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                             ) {
                                 const usp = new URLSearchParams(body);
                                 token =
-                                    usp.get('cf-turnstile-response') ||
-                                    usp.get('cf_token') ||
+                                    usp.get('turnstile-token') ||
                                     usp.get('token') ||
                                     token;
                             }

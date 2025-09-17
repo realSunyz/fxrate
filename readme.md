@@ -111,7 +111,7 @@ Optional query parameters:
 
 - `POST /v1/auth/signed` - Verify a Turnstile token and issue a session cookie.
 
-Query parameter: `cf-turnstile-response`, `cf_token`, or `token`.
+Query parameter: `cf_token` or `token` (equivalent).
 
 ```bash
 POST /auth/signed HTTP/1.1
