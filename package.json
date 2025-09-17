@@ -1,6 +1,6 @@
 {
     "name": "fxrate",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "license": "SEE LICENSE IN LICENSE",
     "author": "Bo Xu <i@186526.xyz> (https://186526.xyz/), Yanzheng Sun <i@sunyz.net>",
     "dependencies": {
