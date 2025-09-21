@@ -1,7 +1,5 @@
 import process from 'node:process';
 import http from 'node:http';
-import axios from 'axios';
-import crypto from 'node:crypto';
 
 import esMain from 'es-main';
 
@@ -9,6 +7,17 @@ import rootRouter, { handler } from 'handlers.js';
 
 import fxmManager from './fxmManager';
 import { useBasic } from './fxmManager';
+import createSignedHandler from './auth/signed';
+import {
+    CAPTCHA_ENABLED,
+    CAPTCHA_PROVIDER,
+    SESSION_COOKIE_DOMAIN,
+    SESSION_COOKIE_NAME,
+    SESSION_COOKIE_SAMESITE,
+    SESSION_COOKIE_SECURE,
+    getSessionWithReason,
+    parseCookies,
+} from './auth/session';
 
 import getBOCFXRatesFromBOC from './FXGetter/boc';
 // import getBOCHKFxRates from './FXGetter/bochk';
@@ -37,68 +46,6 @@ import getPABFXRates from './FXGetter/pab';
 import mastercardFXM from './FXGetter/mastercard';
 import visaFXM from './FXGetter/visa';
 // import { RSSHandler } from './handler/rss';
-
-const SESSION_TTL_SECONDS = Number(process.env.SESSION_TTL_SECONDS ?? 300);
-const SESSION_COOKIE_DOMAIN = process.env.SESSION_COOKIE_DOMAIN || undefined;
-const SESSION_COOKIE_SAMESITE = (process.env.SESSION_COOKIE_SAMESITE ??
-    'None') as 'None' | 'Lax' | 'Strict';
-const SESSION_COOKIE_SECURE: boolean = (() => {
-    const v = process.env.SESSION_COOKIE_SECURE;
-    if (v == null) return process.env.NODE_ENV === 'production';
-    return !/^(0|false|no|off)$/i.test(String(v));
-})();
-const DEFAULT_SESSION_COOKIE_NAME = SESSION_COOKIE_SECURE
-    ? SESSION_COOKIE_DOMAIN
-        ? '__Secure-fxrate-sess'
-        : '__Host-fxrate-sess'
-    : 'fxrate_sess';
-const SESSION_COOKIE_NAME = String(
-    process.env.SESSION_COOKIE_NAME ?? DEFAULT_SESSION_COOKIE_NAME,
-);
-const sessionStore = new Map<string, { exp: number; data?: any }>();
-
-const TURNSTILE_ENABLED: boolean = (() => {
-    const v = process.env.TURNSTILE_ENABLE;
-    if (v == null) return true;
-    return !/^(0|false|no|off)$/i.test(String(v));
-})();
-
-const getSessionWithReason = (
-    id?: string | null,
-): {
-    session: { exp: number; data?: any } | null;
-    reason?: 'expired' | 'missing';
-} => {
-    if (!id) return { session: null, reason: 'missing' };
-    const s = sessionStore.get(id);
-    if (!s) return { session: null, reason: 'missing' };
-    if (s.exp <= Date.now()) {
-        sessionStore.delete(id);
-        return { session: null, reason: 'expired' };
-    }
-    return { session: s };
-};
-
-const parseCookies = (
-    cookieHeader: string | null | undefined,
-): Record<string, string> => {
-    const out: Record<string, string> = {};
-    if (!cookieHeader) return out;
-    cookieHeader.split(';').forEach((part) => {
-        const [k, ...rest] = part.trim().split('=');
-        if (!k) return;
-        out[k] = decodeURIComponent(rest.join('='));
-    });
-    return out;
-};
-
-const createSession = (data?: any) => {
-    const id = crypto.randomBytes(32).toString('base64url');
-    const exp = Date.now() + SESSION_TTL_SECONDS * 1000;
-    sessionStore.set(id, { exp, data });
-    return { id, exp };
-};
-
 const Manager = new fxmManager({
     boc: getBOCFXRatesFromBOC,
     // bochk: getBOCHKFxRates,
@@ -220,20 +167,32 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                 }
 
                 try {
-                    (request as any).custom = (request as any).custom || {};
+                    const custom = (request as any).custom || {};
+                    (request as any).custom = custom;
+                    const status: Record<string, any> = {
+                        provider: CAPTCHA_PROVIDER,
+                    };
 
-                    if (!TURNSTILE_ENABLED) {
-                        (request as any).custom.turnstile = {
-                            success: true,
-                            disabled: true,
-                        };
+                    response.headers.set(
+                        'X-Captcha-Provider',
+                        CAPTCHA_PROVIDER,
+                    );
+
+                    if (!CAPTCHA_ENABLED) {
+                        status.success = true;
+                        status.disabled = true;
+                        custom.captcha = status;
+                        custom.turnstile = status;
                         response.headers.set('X-Session', 'disabled');
                         return;
                     }
 
                     const qToken = request.query.get('token');
                     if (qToken === '__internal__') {
-                        (request as any).custom.turnstile = { success: true };
+                        status.success = true;
+                        status.internal = true;
+                        custom.captcha = status;
+                        custom.turnstile = status;
                         response.headers.set('X-Auth', 'internal');
                         return;
                     }
@@ -246,16 +205,20 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
                         cookies[SESSION_COOKIE_NAME],
                     );
                     if (session) {
-                        (request as any).custom.turnstile = { success: true };
+                        status.success = true;
+                        status.session = session.data;
+                        custom.captcha = status;
+                        custom.turnstile = status;
                         response.headers.set('X-Session', 'valid');
                     } else {
-                        (request as any).custom.turnstile = {
-                            success: false,
-                            error:
-                                reason === 'expired'
-                                    ? 'token expired'
-                                    : 'token invalid',
-                        };
+                        status.success = false;
+                        status.error =
+                            reason === 'expired'
+                                ? 'token expired'
+                                : 'token invalid';
+                        if (reason) status.reason = reason;
+                        custom.captcha = status;
+                        custom.turnstile = status;
                         response.headers.set(
                             'X-Session',
                             reason === 'expired' ? 'expired' : 'missing',
@@ -268,128 +231,7 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
         ]),
     );
 
-    App.binding(
-        '/auth/signed',
-        new handler('POST', [
-            async (request, response) => {
-                if (!TURNSTILE_ENABLED) {
-                    response.status = 200;
-                    response.body = JSON.stringify({ success: true });
-                    return response;
-                }
-                const q = request.query;
-                let token = q.get('turnstile-token') || q.get('token') || '';
-
-                if (!token) {
-                    try {
-                        const body = String(request.body || '');
-                        if (body) {
-                            if (
-                                request.headers
-                                    .get('Content-Type')
-                                    ?.includes('application/json')
-                            ) {
-                                const parsed = JSON.parse(body || '{}');
-                                token =
-                                    parsed['turnstile-token'] ||
-                                    parsed['token'] ||
-                                    token;
-                            } else if (
-                                request.headers
-                                    .get('Content-Type')
-                                    ?.includes(
-                                        'application/x-www-form-urlencoded',
-                                    )
-                            ) {
-                                const usp = new URLSearchParams(body);
-                                token =
-                                    usp.get('turnstile-token') ||
-                                    usp.get('token') ||
-                                    token;
-                            }
-                        }
-                    } catch (_e) {
-                        void 0;
-                    }
-                }
-
-                const secret = process.env.TURNSTILE_SECRET;
-                if (!token) {
-                    response.status = 403;
-                    response.body = JSON.stringify({
-                        success: false,
-                        error: 'token invalid',
-                    });
-                    return response;
-                }
-                if (!secret) {
-                    response.status = 500;
-                    response.body = JSON.stringify({
-                        success: false,
-                        error: 'server_misconfigured',
-                        details: 'missing_turnstile_secret',
-                    });
-                    return response;
-                }
-
-                const form = new URLSearchParams();
-                form.set('secret', secret);
-                form.set('response', token);
-                if (request.ip) form.set('remoteip', request.ip);
-
-                const verify = await axios
-                    .post(
-                        'https://challenges.cloudflare.com/turnstile/v0/siteverify',
-                        form,
-                        {
-                            headers: {
-                                'Content-Type':
-                                    'application/x-www-form-urlencoded',
-                                'User-Agent': 'fxrate/turnstile-verify',
-                            },
-                            timeout: 5000,
-                        },
-                    )
-                    .then((r) => r.data)
-                    .catch((e) => ({
-                        success: false,
-                        error: e?.message ?? 'request_error',
-                    }));
-
-                if (verify?.success === true) {
-                    const { id, exp } = createSession({ turnstile: verify });
-                    const attrs = [
-                        `${SESSION_COOKIE_NAME}=${encodeURIComponent(id)}`,
-                        `Max-Age=${SESSION_TTL_SECONDS}`,
-                        'HttpOnly',
-                        `SameSite=${SESSION_COOKIE_SAMESITE}`,
-                        'Path=/',
-                    ];
-                    if (SESSION_COOKIE_SECURE) attrs.push('Secure');
-                    if (SESSION_COOKIE_DOMAIN)
-                        attrs.push(`Domain=${SESSION_COOKIE_DOMAIN}`);
-                    response.headers.set('Set-Cookie', attrs.join('; '));
-                    response.status = 200;
-                    response.body = JSON.stringify({
-                        success: true,
-                        expiresAt: new Date(exp).toISOString(),
-                    });
-                    return response;
-                }
-
-                const errCodes = (verify && verify['error-codes']) || [];
-                const isExpired = Array.isArray(errCodes)
-                    ? errCodes.includes('timeout-or-duplicate')
-                    : String(errCodes).includes('timeout-or-duplicate');
-                response.status = 403;
-                response.body = JSON.stringify({
-                    success: false,
-                    error: isExpired ? 'token expired' : 'token invalid',
-                });
-                return response;
-            },
-        ]),
-    );
+    App.binding('/auth/signed', createSignedHandler());
 
     App.binding(
         '/auth/logout',
