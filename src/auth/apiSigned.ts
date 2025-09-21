@@ -98,7 +98,6 @@ const parseJSON = (
 
 const verifyToken = (
     token: string,
-    request: any,
 ): { payload: Record<string, unknown> } | VerifyError => {
     if (PUBLIC_KEYS.length === 0) {
         return { status: 503, error: 'signed_disabled' };
@@ -149,19 +148,8 @@ const verifyToken = (
         return err;
     }
 
-    const srcIp = payload['src_ip'];
     const exp = payload['exp'];
     const iat = payload['iat'];
-
-    if (typeof srcIp !== 'string' || srcIp.length === 0) {
-        return { status: 400, error: 'src_ip_invalid' };
-    }
-
-    const requestIp = request.ip;
-    if (requestIp && requestIp !== srcIp) {
-        return { status: 403, error: 'ip_mismatch' };
-    }
-
     const expNum = Number(exp);
     const iatNum = Number(iat);
     const now = Math.floor(Date.now() / 1000);
@@ -260,7 +248,7 @@ const createSignedApiHandler = () =>
                 return response;
             }
 
-            const result = verifyToken(token, request);
+            const result = verifyToken(token);
             if (isVerifyError(result)) {
                 response.status = result.status;
                 response.body = JSON.stringify({
