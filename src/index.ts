@@ -7,7 +7,7 @@ import rootRouter, { handler } from 'handlers.js';
 
 import fxmManager from './fxmManager';
 import { useBasic } from './fxmManager';
-import createSignedHandler from './auth/signed';
+import { createRecaptchaHandler, createTurnstileHandler } from './auth/signed';
 import {
     CAPTCHA_ENABLED,
     CAPTCHA_PROVIDER,
@@ -231,7 +231,8 @@ export const makeInstance = async (App: rootRouter, Manager: fxmManager) => {
         ]),
     );
 
-    App.binding('/auth/signed', createSignedHandler());
+    App.binding('/auth/turnstile', createTurnstileHandler());
+    App.binding('/auth/recaptcha', createRecaptchaHandler());
 
     App.binding(
         '/auth/logout',

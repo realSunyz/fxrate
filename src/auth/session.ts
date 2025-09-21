@@ -29,32 +29,20 @@ const sessionStore = new Map<string, SessionData>();
 type CaptchaProvider = 'turnstile' | 'recaptcha' | 'none';
 
 const resolveCaptchaProvider = (): CaptchaProvider => {
-    const raw = process.env.CAPTCHA_PROVIDER?.trim().toLowerCase();
+    const envValue = process.env.CAPTCHA_PROVIDER;
+    const raw = envValue ? envValue.trim().toLowerCase() : undefined;
     switch (raw) {
         case 'turnstile':
-        case 'cloudflare':
-        case 'cloudflare-turnstile':
-        case 'cf':
             return 'turnstile';
         case 'recaptcha':
-        case 'google':
-        case 'google-recaptcha':
             return 'recaptcha';
         case 'none':
-        case 'disabled':
-        case 'off':
+        case undefined:
+        case '':
             return 'none';
         default:
-            break;
+            return 'none';
     }
-
-    const turnstileLegacyEnabled = (() => {
-        const v = process.env.TURNSTILE_ENABLE;
-        if (v == null) return true;
-        return !/^(0|false|no|off)$/i.test(String(v));
-    })();
-
-    return turnstileLegacyEnabled ? 'turnstile' : 'none';
 };
 
 export const CAPTCHA_PROVIDER: CaptchaProvider = resolveCaptchaProvider();

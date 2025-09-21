@@ -2,33 +2,59 @@ import axios from 'axios';
 import { handler } from 'handlers.js';
 import process from 'node:process';
 
+import type { CaptchaProvider } from './session';
 import {
-    CAPTCHA_ENABLED,
-    CAPTCHA_PROVIDER,
     RECAPTCHA_ENABLED,
-    TURNSTILE_ENABLED,
-    SESSION_TTL_SECONDS,
+    SESSION_COOKIE_DOMAIN,
     SESSION_COOKIE_NAME,
     SESSION_COOKIE_SAMESITE,
     SESSION_COOKIE_SECURE,
-    SESSION_COOKIE_DOMAIN,
+    SESSION_TTL_SECONDS,
+    TURNSTILE_ENABLED,
     createSession,
 } from './session';
 
-const TOKEN_KEYS = ['turnstile-token', 'recaptcha-token'];
+type ActiveCaptchaProvider = Exclude<CaptchaProvider, 'none'>;
 
-const extractTokenFromObject = (source: Record<string, unknown>): string => {
-    for (const key of TOKEN_KEYS) {
+type VerifyOk = { success: true; payload: any };
+type VerifyErr = {
+    success: false;
+    status: number;
+    response: { success: false; error: string; details?: any };
+};
+type VerifyResult = VerifyOk | VerifyErr;
+
+type CaptchaHandlerOptions = {
+    provider: ActiveCaptchaProvider;
+    enabled: boolean;
+    tokenKeys: string[];
+    verify: (token: string, request: any) => Promise<VerifyResult>;
+};
+
+const isVerifyErr = (value: VerifyResult): value is VerifyErr =>
+    value.success !== true;
+
+const appendTokenFallback = (keys: string[]): string[] => {
+    const merged = [...keys, 'token'];
+    return Array.from(new Set(merged.filter(Boolean)));
+};
+
+const extractTokenFromObject = (
+    source: Record<string, unknown>,
+    keys: string[],
+): string => {
+    for (const key of keys) {
         const value = source[key];
         if (typeof value === 'string' && value) return value;
     }
     return '';
 };
 
-const extractToken = (request: any): string => {
+const extractToken = (request: any, keys: string[]): string => {
+    const tokenKeys = appendTokenFallback(keys);
     const q = request.query;
     if (q) {
-        for (const key of TOKEN_KEYS) {
+        for (const key of tokenKeys) {
             const val = q.get?.(key);
             if (val) return val;
         }
@@ -37,6 +63,7 @@ const extractToken = (request: any): string => {
     if (request.body && typeof request.body === 'object') {
         const direct = extractTokenFromObject(
             request.body as Record<string, unknown>,
+            tokenKeys,
         );
         if (direct) return direct;
     }
@@ -58,10 +85,11 @@ const extractToken = (request: any): string => {
             if (parsed && typeof parsed === 'object')
                 return extractTokenFromObject(
                     parsed as Record<string, unknown>,
+                    tokenKeys,
                 );
         } else if (contentType.includes('application/x-www-form-urlencoded')) {
             const usp = new URLSearchParams(body);
-            for (const key of TOKEN_KEYS) {
+            for (const key of tokenKeys) {
                 const val = usp.get(key);
                 if (val) return val;
             }
@@ -72,17 +100,6 @@ const extractToken = (request: any): string => {
 
     return '';
 };
-
-type VerifyOk = { success: true; payload: any };
-type VerifyErr = {
-    success: false;
-    status: number;
-    response: { success: false; error: string; details?: any };
-};
-type VerifyResult = VerifyOk | VerifyErr;
-
-const isVerifyErr = (value: VerifyResult): value is VerifyErr =>
-    value.success !== true;
 
 const verifyTurnstile = async (
     token: string,
@@ -198,30 +215,27 @@ const verifyRecaptcha = async (
     };
 };
 
-const verifyCaptcha = (token: string, request: any): Promise<VerifyResult> => {
-    if (TURNSTILE_ENABLED) return verifyTurnstile(token, request);
-    if (RECAPTCHA_ENABLED) return verifyRecaptcha(token, request);
-    return Promise.resolve({
-        success: false,
-        status: 500,
-        response: {
-            success: false,
-            error: 'server_misconfigured',
-            details: `unsupported_captcha_provider:${CAPTCHA_PROVIDER}`,
-        },
-    });
-};
-
-const createSignedHandler = () =>
+const createCaptchaHandler = ({
+    provider,
+    enabled,
+    tokenKeys,
+    verify,
+}: CaptchaHandlerOptions) =>
     new handler('POST', [
         async (request, response) => {
-            if (!CAPTCHA_ENABLED) {
-                response.status = 200;
-                response.body = JSON.stringify({ success: true });
+            response.headers.set('X-Captcha-Provider', provider);
+
+            if (!enabled) {
+                response.status = 503;
+                response.body = JSON.stringify({
+                    success: false,
+                    error: 'captcha_disabled',
+                    provider,
+                });
                 return response;
             }
 
-            const token = extractToken(request);
+            const token = extractToken(request, tokenKeys);
             if (!token) {
                 response.status = 403;
                 response.body = JSON.stringify({
@@ -231,7 +245,7 @@ const createSignedHandler = () =>
                 return response;
             }
 
-            const result = await verifyCaptcha(token, request);
+            const result = await verify(token, request);
             if (isVerifyErr(result)) {
                 response.status = result.status;
                 response.body = JSON.stringify(result.response);
@@ -239,7 +253,7 @@ const createSignedHandler = () =>
             }
 
             const { id, exp } = createSession({
-                provider: CAPTCHA_PROVIDER,
+                provider,
                 verify: result.payload,
             });
             const attrs = [
@@ -262,4 +276,23 @@ const createSignedHandler = () =>
         },
     ]);
 
-export default createSignedHandler;
+const TURNSTILE_TOKEN_KEYS = ['turnstile-token'];
+const RECAPTCHA_TOKEN_KEYS = ['recaptcha-token', 'g-recaptcha-response'];
+
+export const createTurnstileHandler = () =>
+    createCaptchaHandler({
+        provider: 'turnstile',
+        enabled: TURNSTILE_ENABLED,
+        tokenKeys: TURNSTILE_TOKEN_KEYS,
+        verify: verifyTurnstile,
+    });
+
+export const createRecaptchaHandler = () =>
+    createCaptchaHandler({
+        provider: 'recaptcha',
+        enabled: RECAPTCHA_ENABLED,
+        tokenKeys: RECAPTCHA_TOKEN_KEYS,
+        verify: verifyRecaptcha,
+    });
+
+export { createCaptchaHandler };
